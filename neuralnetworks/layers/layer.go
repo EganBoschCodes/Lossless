@@ -11,7 +11,7 @@ import "gonum.org/v1/gonum/mat"
 */
 
 type Layer interface {
-	Initialize(int, int)
-	Pass(mat.Vector) []float64
+	Initialize(int, int) Layer
+	Pass([]float64) []float64
 	Back([]float64) (mat.Matrix, []float64)
 }

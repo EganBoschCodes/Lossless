@@ -1,7 +1,7 @@
 package layers
 
 import (
-	"fmt"
+	"math/rand"
 
 	"gonum.org/v1/gonum/mat"
 )
@@ -12,20 +12,20 @@ type LinearLayer struct {
 	n_outputs int
 }
 
-func (layer *LinearLayer) Initialize(numInputs int, numOutputs int) {
-	data := make([]float64, numInputs*numOutputs)
+func (layer LinearLayer) Initialize(numInputs int, numOutputs int) Layer {
+	data := make([]float64, (numInputs+1)*numOutputs)
 	for i := range data {
-		//data[i] = rand.NormFloat64()
-		data[i] = float64(i)
+		data[i] = rand.NormFloat64()
 	}
-	layer.weights = mat.NewDense(numOutputs, numInputs, data)
+	layer.weights = mat.NewDense(numOutputs, numInputs+1, data)
 
-	layer.n_inputs = numInputs
+	layer.n_inputs = numInputs + 1
 	layer.n_outputs = numOutputs
-	fmt.Println(layer.weights)
+
+	return layer
 }
 
-func (layer *LinearLayer) Pass(input []float64) []float64 {
+func (layer LinearLayer) Pass(input []float64) []float64 {
 	output := mat.NewVecDense(layer.n_outputs, nil)
 	output.MulVec(layer.weights, mat.NewVecDense(layer.n_inputs, input))
 
@@ -37,6 +37,6 @@ func (layer *LinearLayer) Pass(input []float64) []float64 {
 	return outputSlice
 }
 
-func (layer *LinearLayer) Back(forwardGradients mat.Vector) (shifts mat.Matrix, backwardsPass mat.Vector) {
+func (layer LinearLayer) Back(forwardGradients []float64) (shifts mat.Matrix, backwardsPass []float64) {
 	return nil, nil
 }
