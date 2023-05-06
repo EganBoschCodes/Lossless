@@ -2,11 +2,15 @@ package main
 
 import (
 	"fmt"
-
-	"gonum.org/v1/gonum/mat"
+	"go-ml-library/neuralnetworks/layers"
 )
 
 func main() {
-	zero := mat.NewDense(3, 5, nil)
-	fmt.Println(zero)
+	layer := layers.LinearLayer{}
+	layer.Initialize(3, 4)
+
+	input := []float64{1, 2, 3}
+	output := layer.Pass(input)
+
+	fmt.Println(output)
 }
