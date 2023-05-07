@@ -10,22 +10,28 @@ type SigmoidLayer struct {
 	n_inputs int
 }
 
-func (layer SigmoidLayer) Initialize(n_inputs int, _ int) Layer {
+func (layer *SigmoidLayer) Initialize(n_inputs int, _ int) {
 	layer.n_inputs = n_inputs
-	return layer
 }
 
 func sigmoid(x float64) float64 {
 	return 1 / (1 + math.Exp(-x))
 }
 
-func (layer SigmoidLayer) Pass(input []float64) []float64 {
+func (layer *SigmoidLayer) Pass(input []float64) []float64 {
 	for i := 0; i < layer.n_inputs; i++ {
 		input[i] = sigmoid(input[i])
 	}
 	return input
 }
 
-func (layer SigmoidLayer) Back(forwardGradients []float64) (shifts mat.Matrix, backwardsPass []float64) {
-	return nil, nil
+func (layer *SigmoidLayer) Back(inputs []float64, outputs []float64, forwardGradients mat.Matrix) (mat.Matrix, mat.Matrix) {
+	rows, _ := forwardGradients.Dims()
+	newGradients := make([]float64, rows)
+	for i := 0; i < rows; i++ {
+		newGradients[i] = outputs[i] * (1 - outputs[i]) * forwardGradients.At(i, 0)
+	}
+	return nil, mat.NewDense(rows, 1, newGradients)
 }
+
+func (layer *SigmoidLayer) ApplyShift(shift mat.Matrix, scale float64) {}

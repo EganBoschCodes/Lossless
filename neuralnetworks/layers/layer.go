@@ -11,7 +11,8 @@ import "gonum.org/v1/gonum/mat"
 */
 
 type Layer interface {
-	Initialize(int, int) Layer
+	Initialize(int, int)
 	Pass([]float64) []float64
-	Back([]float64) (mat.Matrix, []float64)
+	Back([]float64, []float64, mat.Matrix) (mat.Matrix, mat.Matrix)
+	ApplyShift(mat.Matrix, float64)
 }

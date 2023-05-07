@@ -1,26 +1,31 @@
 package main
 
 import (
-	"fmt"
 	"go-ml-library/neuralnetworks/layers"
 	"go-ml-library/neuralnetworks/networks"
 )
 
 func main() {
 	network := networks.Perceptron{}
-	network.Initialize([]int{5, 2, 2}, []layers.Layer{layers.LinearLayer{}, layers.SigmoidLayer{}})
+	network.Initialize([]int{2, 2, 2}, []layers.Layer{&layers.LinearLayer{}, &layers.SigmoidLayer{}})
 
-	input := []float64{1, 2, 3, 4, 5}
-	fmt.Println(network.Evaluate(input))
+	input := []float64{-1, 1}
+	output := []float64{1, 0}
+	for i := 0; i < 1000; i++ {
+		network.Learn(input, output)
+	}
 
-	//layer := layers.LinearLayer{}.Initialize(3, 4)
+	//fmt.Println(network.Evaluate(input))
 
-	//sig := layers.SigmoidLayer{}.Initialize(4, 4)
+	/*
+		a := mat.NewDense(3, 1, []float64{1, 2, 3})
+		utils.PrintMat("a", a)
+		b := mat.NewDense(1, 2, []float64{1, 2})
+		utils.PrintMat("b", b)
 
-	//input := []float64{1, 2, 3}
-	//output := layer.Pass(input)
+		m := mat.NewDense(3, 2, nil)
+		m.Mul(a, b)
 
-	//output = sig.Pass(output)
-
-	//fmt.Println(output)
+		utils.PrintMat("m", m)
+	*/
 }
