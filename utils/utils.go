@@ -34,3 +34,11 @@ func GetDistribution(values []float64) (float64, float64) {
 
 	return mean, math.Sqrt(variance)
 }
+
+func Reduce(vals []float64, reduction func(float64, float64) float64) float64 {
+	ret := vals[0]
+	for i := 1; i < len(vals); i++ {
+		ret = reduction(ret, vals[i])
+	}
+	return ret
+}

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"go-ml-library/datasets"
 	"go-ml-library/neuralnetworks/layers"
+	"go-ml-library/utils"
+	"math"
 	"time"
 
 	"gonum.org/v1/gonum/mat"
@@ -104,7 +106,7 @@ func (network *Perceptron) learn(input []float64, target []float64, channel chan
 	to be summed up.
 */
 
-func (network *Perceptron) getLoss(datapoint datasets.DataPoint, c chan float64) {
+func (network *Perceptron) getLoss(datapoint datasets.DataPoint, lossChannel chan float64, correctChannel chan bool) {
 	input, target := datapoint.Input, datapoint.Output
 	output := network.Evaluate(input)
 
@@ -112,7 +114,11 @@ func (network *Perceptron) getLoss(datapoint datasets.DataPoint, c chan float64)
 	for i := range output {
 		loss += 0.5 * (output[i] - target[i]) * (output[i] - target[i])
 	}
-	c <- loss
+
+	wasCorrect := utils.Reduce(output, math.Max) == output[datasets.FromOneHot(target)]
+
+	lossChannel <- loss
+	correctChannel <- wasCorrect
 }
 
 /*
@@ -122,21 +128,26 @@ func (network *Perceptron) getLoss(datapoint datasets.DataPoint, c chan float64)
 	comparison.
 */
 
-func (network *Perceptron) getTotalLoss(dataset []datasets.DataPoint) float64 {
+func (network *Perceptron) getTotalLoss(dataset []datasets.DataPoint) (float64, int) {
 	loss := 0.0
+	correctGuesses := 0
 
-	c := make(chan float64)
+	lossChannel := make(chan float64)
+	correctChannel := make(chan bool)
 	for _, datapoint := range dataset {
-		go network.getLoss(datapoint, c)
+		go network.getLoss(datapoint, lossChannel, correctChannel)
 	}
 
 	valuesRecieved := 0
 	for valuesRecieved < len(dataset) {
-		loss += <-c
+		loss += <-lossChannel
+		if <-correctChannel {
+			correctGuesses++
+		}
 		valuesRecieved++
 	}
 
-	return loss
+	return loss, correctGuesses
 }
 
 /*
@@ -164,7 +175,10 @@ func (network *Perceptron) getEmptyShift() []mat.Matrix {
 
 func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Duration) {
 	// Get a baseline
-	fmt.Printf("Beginning Loss: %.3f\n", network.getTotalLoss(dataset))
+	loss, correctGuesses := network.getTotalLoss(dataset)
+	fmt.Printf("Beginning Loss: %.3f\n", loss)
+	correctPercentage := float64(correctGuesses) / float64(len(dataset)) * 100
+	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n", correctGuesses, len(dataset), correctPercentage)
 
 	// Start the tracking data
 	start := time.Now()
@@ -207,6 +221,10 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Dur
 	}
 
 	// Log how we did
-	fmt.Printf("Ending Loss: %.6f\n", network.getTotalLoss(dataset))
+	loss, correctGuesses = network.getTotalLoss(dataset)
+	fmt.Printf("Ending Loss: %.3f\n", loss)
+
+	correctPercentage = float64(correctGuesses) / float64(len(dataset)) * 100
+	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n", correctGuesses, len(dataset), correctPercentage)
 	fmt.Println("Trained Epochs:", epochs, ", Trained Datapoints:", epochs*len(dataset)+datapointIndex)
 }

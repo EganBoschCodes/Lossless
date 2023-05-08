@@ -43,10 +43,16 @@ func GetMean(dataset []DataPoint, sampleSize int) []float64 {
 	return means
 }
 
+func Apply(dataset []DataPoint, f func([]float64) []float64) {
+	for i, datapoint := range dataset {
+		dataset[i] = DataPoint{Input: f(datapoint.Input), Output: datapoint.Output}
+	}
+}
+
 func NormalizeInputs(dataset []DataPoint) {
 	rand.Shuffle(len(dataset), func(i, j int) { dataset[i], dataset[j] = dataset[j], dataset[i] })
 
-	sampleSize := 50
+	sampleSize := len(dataset)
 	means := GetMean(dataset, sampleSize)
 
 	numInputs := len(dataset[0].Input)
@@ -61,9 +67,14 @@ func NormalizeInputs(dataset []DataPoint) {
 		stddevs[i] = math.Sqrt(stddevs[i]) / float64(utils.Min(sampleSize, len(dataset)))
 	}
 
-	for i := 0; i < numInputs; i++ {
-		for _, datapoint := range dataset {
-			datapoint.Input[i] = (datapoint.Input[i] - means[i]) / stddevs[i]
+	for i, datapoint := range dataset {
+		newInput := make([]float64, 0)
+		for j := 0; j < numInputs; j++ {
+			if stddevs[j] == 0 {
+				continue
+			}
+			newInput = append(newInput, (datapoint.Input[j]-means[j])/stddevs[j])
 		}
+		dataset[i].Input = newInput
 	}
 }

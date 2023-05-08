@@ -24,8 +24,10 @@ func (layer *LinearLayer) Initialize(numInputs int, numOutputs int) {
 }
 
 func (layer *LinearLayer) Pass(input []float64) []float64 {
+	inputVec := mat.NewVecDense(layer.n_inputs, input)
+
 	output := mat.NewVecDense(layer.n_outputs, nil)
-	output.MulVec(layer.weights, mat.NewVecDense(layer.n_inputs, input))
+	output.MulVec(layer.weights, inputVec)
 
 	outputSlice := make([]float64, layer.n_outputs+1)
 	for i := 0; i < layer.n_outputs; i++ {
@@ -40,19 +42,12 @@ func (layer *LinearLayer) Back(inputs []float64, outputs []float64, forwardGradi
 	shift := mat.NewDense(gradSize, len(inputs), nil)
 	inputVec := mat.NewDense(1, len(inputs), inputs)
 
-	//utils.PrintMat("weights", layer.weights)
-
 	shift.Mul(forwardGradients, inputVec)
-	//utils.PrintMat("shift", shift)
 
 	subweights := layer.weights.(*mat.Dense).Slice(0, gradSize, 0, len(inputs)-1).T()
-	//utils.PrintMat("Subweights", subweights)
-	//utils.PrintMat("forwardGradients", forwardGradients)
 
 	newGradient := mat.NewDense(len(inputs)-1, 1, nil)
 	newGradient.Mul(subweights, forwardGradients)
-
-	//utils.PrintMat("NewGradient", newGradient)
 
 	return shift, newGradient
 }
