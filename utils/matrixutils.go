@@ -1,0 +1,108 @@
+package utils
+
+import (
+	"gonum.org/v1/gonum/mat"
+)
+
+/*
+	Matrix Convolution:
+	----------------------------------------------------------------------------------
+	Used for convolutional neural networks, this will convolve a matrix with a kernel.
+	It will produce an output matrix with dimensions equal to that of the data matrix
+	minus the dimensions of the kernel, plus one in each direction.
+
+	Channeled and goroutined once again to promote performance.
+*/
+
+func convolveInner(data mat.Matrix, kernel mat.Matrix, output mat.Matrix, rstart int, rend int, cstart int, cend int, notifier chan int) {
+	kr, kc := kernel.Dims()
+
+	for r := rstart; r < rend; r++ {
+		for c := cstart; c < cend; c++ {
+			val := 0.0
+			for or := 0; or < kr; or++ {
+				for oc := 0; oc < kc; oc++ {
+					val += data.At(r+or, c+oc) * kernel.At(or, oc)
+				}
+			}
+			output.(*mat.Dense).Set(r, c, val)
+		}
+	}
+	notifier <- 1
+}
+
+func ConvolveNoPadding(data mat.Matrix, kernel mat.Matrix) mat.Matrix {
+	dr, dc := data.Dims()
+	kr, kc := kernel.Dims()
+
+	output := mat.NewDense(dr-kr+1, dc-kc+1, nil)
+	or, oc := output.Dims()
+
+	outputCounter := 0
+	outputChannel := make(chan int)
+
+	subdivisions := Max(1, or/7)
+	for i := 0; i < subdivisions; i++ {
+		for j := 0; j < subdivisions; j++ {
+			go convolveInner(data, kernel, output, or*i/subdivisions, or*(i+1)/subdivisions, oc*j/subdivisions, oc*(j+1)/subdivisions, outputChannel)
+		}
+	}
+
+	for outputCounter < subdivisions*subdivisions {
+		outputCounter += <-outputChannel
+	}
+
+	return output
+}
+
+/*
+	Padded Matrix Convolution:
+	----------------------------------------------------------------------------------
+	Used to get the backpropagation weights in a convolutional layer, this essentially
+	just puts a layer of zeros around the data matrix of thickness equal to the dimensions
+	of the kernel minus 1. So a 2x2 data matrix and a 2x2 kernel produce a 3x3 output.
+*/
+
+func convolveInnerPadding(data mat.Matrix, kernel mat.Matrix, output mat.Matrix, rstart int, rend int, cstart int, cend int, notifier chan int) {
+	kr, kc := kernel.Dims()
+	dr, dc := data.Dims()
+
+	for r := rstart; r < rend; r++ {
+		for c := cstart; c < cend; c++ {
+			val := 0.0
+			for or := 0; or < kr; or++ {
+				for oc := 0; oc < kc; oc++ {
+					if r-kr+1+or >= 0 && c-kc+1+oc >= 0 && r-kr+1+or < dr && c-kc+1+oc < dc {
+						val += data.At(r-kr+1+or, c-kc+1+oc) * kernel.At(or, oc)
+					}
+				}
+			}
+			output.(*mat.Dense).Set(r, c, val)
+		}
+	}
+	notifier <- 1
+}
+
+func ConvolveWithPadding(data mat.Matrix, kernel mat.Matrix) mat.Matrix {
+	dr, dc := data.Dims()
+	kr, kc := kernel.Dims()
+
+	output := mat.NewDense(dr+kr-1, dc+kc-1, nil)
+	or, oc := output.Dims()
+
+	outputCounter := 0
+	outputChannel := make(chan int)
+
+	subdivisions := Max(1, or/7)
+	for i := 0; i < subdivisions; i++ {
+		for j := 0; j < subdivisions; j++ {
+			go convolveInnerPadding(data, kernel, output, or*i/subdivisions, or*(i+1)/subdivisions, oc*j/subdivisions, oc*(j+1)/subdivisions, outputChannel)
+		}
+	}
+
+	for outputCounter < subdivisions*subdivisions {
+		outputCounter += <-outputChannel
+	}
+
+	return output
+}

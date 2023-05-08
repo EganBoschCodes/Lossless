@@ -19,6 +19,13 @@ func Min(a int, b int) int {
 	return b
 }
 
+func Max(a int, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func GetDistribution(values []float64) (float64, float64) {
 	mean := 0.0
 	for _, val := range values {
