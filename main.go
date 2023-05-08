@@ -1,31 +1,18 @@
 package main
 
 import (
+	"go-ml-library/datasets"
 	"go-ml-library/neuralnetworks/layers"
 	"go-ml-library/neuralnetworks/networks"
+	"time"
 )
 
 func main() {
 	network := networks.Perceptron{}
-	network.Initialize([]int{2, 2, 2}, []layers.Layer{&layers.LinearLayer{}, &layers.SigmoidLayer{}})
+	network.Initialize([]int{2, 5, 3}, []layers.Layer{&layers.LinearLayer{}, &layers.SigmoidLayer{}, &layers.LinearLayer{}, &layers.SoftmaxLayer{}})
 
-	input := []float64{-1, 1}
-	output := []float64{1, 0}
-	for i := 0; i < 1000; i++ {
-		network.Learn(input, output)
-	}
+	dataset := datasets.GetSpiralDataset()
+	datasets.NormalizeInputs(dataset)
 
-	//fmt.Println(network.Evaluate(input))
-
-	/*
-		a := mat.NewDense(3, 1, []float64{1, 2, 3})
-		utils.PrintMat("a", a)
-		b := mat.NewDense(1, 2, []float64{1, 2})
-		utils.PrintMat("b", b)
-
-		m := mat.NewDense(3, 2, nil)
-		m.Mul(a, b)
-
-		utils.PrintMat("m", m)
-	*/
+	network.Train(dataset, time.Second*10)
 }

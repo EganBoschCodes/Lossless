@@ -34,4 +34,8 @@ func (layer *SigmoidLayer) Back(inputs []float64, outputs []float64, forwardGrad
 	return nil, mat.NewDense(rows, 1, newGradients)
 }
 
+func (layer *SigmoidLayer) GetShape() mat.Matrix {
+	return nil
+}
+
 func (layer *SigmoidLayer) ApplyShift(shift mat.Matrix, scale float64) {}

@@ -1,7 +1,6 @@
 package layers
 
 import (
-	"go-ml-library/utils"
 	"math/rand"
 
 	"gonum.org/v1/gonum/mat"
@@ -41,7 +40,7 @@ func (layer *LinearLayer) Back(inputs []float64, outputs []float64, forwardGradi
 	shift := mat.NewDense(gradSize, len(inputs), nil)
 	inputVec := mat.NewDense(1, len(inputs), inputs)
 
-	utils.PrintMat("weights", layer.weights)
+	//utils.PrintMat("weights", layer.weights)
 
 	shift.Mul(forwardGradients, inputVec)
 	//utils.PrintMat("shift", shift)
@@ -56,6 +55,12 @@ func (layer *LinearLayer) Back(inputs []float64, outputs []float64, forwardGradi
 	//utils.PrintMat("NewGradient", newGradient)
 
 	return shift, newGradient
+}
+
+func (layer *LinearLayer) GetShape() mat.Matrix {
+	shape := mat.DenseCopyOf(layer.weights)
+	shape.Zero()
+	return shape
 }
 
 func (layer *LinearLayer) ApplyShift(shift mat.Matrix, scale float64) {
