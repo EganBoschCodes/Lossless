@@ -71,6 +71,7 @@ func NormalizeInputs(dataset []DataPoint) {
 		newInput := make([]float64, 0)
 		for j := 0; j < numInputs; j++ {
 			if stddevs[j] == 0 {
+				newInput = append(newInput, 0)
 				continue
 			}
 			newInput = append(newInput, (datapoint.Input[j]-means[j])/stddevs[j])

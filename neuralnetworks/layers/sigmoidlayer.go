@@ -18,20 +18,18 @@ func sigmoid(x float64) float64 {
 	return 1 / (1 + math.Exp(-x))
 }
 
-func (layer *SigmoidLayer) Pass(input []float64) []float64 {
-	for i := 0; i < layer.n_inputs; i++ {
-		input[i] = sigmoid(input[i])
-	}
+func (layer *SigmoidLayer) Pass(input mat.Matrix) mat.Matrix {
+	input.(*mat.Dense).Apply(func(i int, j int, v float64) float64 { return sigmoid(v) }, input)
 	return input
 }
 
-func (layer *SigmoidLayer) Back(inputs []float64, outputs []float64, forwardGradients mat.Matrix) (mat.Matrix, mat.Matrix) {
-	rows, _ := forwardGradients.Dims()
-	newGradients := make([]float64, rows)
-	for i := 0; i < rows; i++ {
-		newGradients[i] = outputs[i] * (1 - outputs[i]) * forwardGradients.At(i, 0)
-	}
-	return nil, mat.NewDense(rows, 1, newGradients)
+func (layer *SigmoidLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (mat.Matrix, mat.Matrix) {
+	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
+		val := outputs.At(i, j)
+		return v * val * (1 - val)
+	}, forwardGradients)
+
+	return nil, forwardGradients
 }
 
 func (layer *SigmoidLayer) GetShape() mat.Matrix {

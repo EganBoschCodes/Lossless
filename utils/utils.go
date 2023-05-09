@@ -61,3 +61,11 @@ func Reduce(vals []float64, reduction func(float64, float64) float64) float64 {
 	}
 	return ret
 }
+
+func Map(vals []float64, mapfunc func(float64) float64) []float64 {
+	mappedVals := make([]float64, len(vals))
+	for i, val := range vals {
+		mappedVals[i] = mapfunc(val)
+	}
+	return mappedVals
+}

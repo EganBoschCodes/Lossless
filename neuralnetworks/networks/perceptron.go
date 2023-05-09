@@ -37,16 +37,17 @@ func (network *Perceptron) Initialize(numInputs int, ls []layers.Layer) {
 */
 
 func (network *Perceptron) Evaluate(input []float64) []float64 {
-	// Add the "Bias" before passing to the first layer
-	input = append(input, 1)
+	// Convert slice into matrix
+	var inputMat mat.Matrix
+	inputMat = mat.NewDense(len(input), 1, input)
 
 	// Pass the input through all the layers
 	for _, layer := range network.Layers {
-		input = layer.Pass(input)
+		inputMat = layer.Pass(inputMat)
 	}
 
-	// Return the return value, minus the bias.
-	return input[:len(input)-1]
+	// Reconvert from matrix back to the underlying slice
+	return inputMat.(*mat.Dense).RawMatrix().Data
 }
 
 /*
@@ -59,20 +60,21 @@ func (network *Perceptron) Evaluate(input []float64) []float64 {
 
 func (network *Perceptron) learn(input []float64, target []float64, channel chan []mat.Matrix) {
 	// Done very similarly to Evaluate, but we just cache the inputs basically so we can use them to do backprop.
-	inputCache := make([][]float64, 0)
+	inputCache := make([]mat.Matrix, 0)
 
-	input = append(input, 1)
+	var inputMat mat.Matrix
+	inputMat = mat.NewDense(len(input), 1, input)
 	for _, layer := range network.Layers {
-		inputCache = append(inputCache, input)
-		input = layer.Pass(input)
+		inputCache = append(inputCache, inputMat)
+		inputMat = layer.Pass(inputMat)
 	}
-	inputCache = append(inputCache, input)
+	inputCache = append(inputCache, inputMat)
 
 	// Now we start the gradient that we're gonna be passing back
 	gradient := make([]float64, len(target))
 	for i := range target {
 		// Basic cross-entropy loss gradient.
-		gradient[i] = (target[i] - input[i])
+		gradient[i] = (target[i] - inputMat.(*mat.Dense).At(i, 0))
 	}
 	gradientMat := mat.NewDense(len(gradient), 1, gradient)
 

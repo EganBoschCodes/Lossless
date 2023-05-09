@@ -179,3 +179,8 @@ func MaxPoolMap(data mat.Matrix, width int, height int) mat.Matrix {
 
 	return output
 }
+
+func DenseLike(m mat.Matrix) mat.Matrix {
+	r, c := m.Dims()
+	return mat.NewDense(r, c, nil)
+}

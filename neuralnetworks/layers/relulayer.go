@@ -1,6 +1,9 @@
 package layers
 
 import (
+	"go-ml-library/utils"
+	"math"
+
 	"gonum.org/v1/gonum/mat"
 )
 
@@ -12,22 +15,20 @@ func (layer *ReluLayer) Initialize(n_inputs int) {
 	layer.n_inputs = n_inputs
 }
 
-func (layer *ReluLayer) Pass(input []float64) []float64 {
-	for i := 0; i < layer.n_inputs; i++ {
-		if input[i] < 0 {
-			input[i] = 0
-		}
-	}
-	return input
+func (layer *ReluLayer) Pass(input mat.Matrix) mat.Matrix {
+	r, c := input.Dims()
+	rawData := input.(*mat.Dense).RawMatrix().Data
+	return mat.NewDense(r, c, utils.Map(rawData, func(a float64) float64 { return math.Max(a, 0.0) }))
 }
 
-func (layer *ReluLayer) Back(inputs []float64, outputs []float64, forwardGradients mat.Matrix) (mat.Matrix, mat.Matrix) {
-	rows, _ := forwardGradients.Dims()
-	for i := 0; i < rows; i++ {
-		if inputs[i] < 0 {
-			forwardGradients.(*mat.Dense).Set(i, 0, 0)
+func (layer *ReluLayer) Back(inputs mat.Matrix, _ mat.Matrix, forwardGradients mat.Matrix) (mat.Matrix, mat.Matrix) {
+	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
+		val := inputs.At(i, j)
+		if val < 0 {
+			return 0
 		}
-	}
+		return v
+	}, forwardGradients)
 	return nil, forwardGradients
 }
 

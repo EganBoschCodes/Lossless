@@ -10,30 +10,19 @@ import (
 
 func main() {
 	network := networks.Perceptron{}
-	network.Initialize(717,
+	network.Initialize(784,
 		[]layers.Layer{
 			&layers.LinearLayer{Outputs: 128},
-			&layers.ReluLayer{},
-			&layers.SigmoidLayer{},
+			&layers.TanhLayer{},
 			&layers.LinearLayer{Outputs: 10},
-			&layers.ReluLayer{},
 			&layers.SoftmaxLayer{},
 		})
 
 	network.BATCH_SIZE = 32
-	network.LEARNING_RATE = 0.1
+	network.LEARNING_RATE = 0.03
 
 	dataset := mnist.GetMNISTTrain()
 	datasets.NormalizeInputs(dataset)
 
-	network.Train(dataset, time.Second*60)
-
-	//for i := 0; i < 20; i++ {
-	//datasets.IsCorrect(network.Evaluate(dataset[i].Input), dataset[i].Output)
-	//}
-
-	/*layer := layers.ReluLayer{}
-	layer.Initialize(3)
-
-	fmt.Println(layer.Pass([]float64{1, 0, -1}))*/
+	network.Train(dataset, time.Second*30)
 }

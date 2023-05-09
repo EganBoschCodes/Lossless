@@ -1,6 +1,7 @@
 package layers
 
 import (
+	"go-ml-library/utils"
 	"math"
 
 	"gonum.org/v1/gonum/mat"
@@ -14,35 +15,26 @@ func (layer *SoftmaxLayer) Initialize(n_inputs int) {
 	layer.n_inputs = n_inputs
 }
 
-func (layer *SoftmaxLayer) Pass(input []float64) []float64 {
-	expInput := make([]float64, len(input))
+func (layer *SoftmaxLayer) Pass(input mat.Matrix) mat.Matrix {
+	inputSlice := input.(*mat.Dense).RawMatrix().Data
+	maxVal := utils.Reduce(inputSlice, math.Max)
 
-	// Preserve the bias
-	expInput[len(input)-1] = 1
+	expSlice := utils.Map(inputSlice, func(a float64) float64 { return math.Exp(a - maxVal) })
+	sumExps := utils.Reduce(expSlice, func(a float64, b float64) float64 { return a + b })
+	expSlice = utils.Map(expSlice, func(a float64) float64 { return a / sumExps })
 
-	// Calculate e^x for all inputs, and sum them at the same time
-	expInputSum := 0.0
-	for i := 0; i < len(input)-1; i++ {
-		expVal := math.Exp(input[i])
-		expInput[i] = expVal
-		expInputSum += expVal
-	}
+	r, c := input.Dims()
 
-	// Normalize all outputs based on all their sums
-	for i := 0; i < len(input)-1; i++ {
-		expInput[i] /= expInputSum
-	}
-
-	return expInput
+	return mat.NewDense(r, c, expSlice)
 }
 
-func (layer *SoftmaxLayer) Back(inputs []float64, outputs []float64, forwardGradients mat.Matrix) (mat.Matrix, mat.Matrix) {
-	rows, _ := forwardGradients.Dims()
-	newGradients := make([]float64, rows)
-	for i := 0; i < rows; i++ {
-		newGradients[i] = outputs[i] * (1 - outputs[i]) * forwardGradients.At(i, 0)
-	}
-	return nil, mat.NewDense(rows, 1, newGradients)
+func (layer *SoftmaxLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (mat.Matrix, mat.Matrix) {
+	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
+		val := outputs.At(i, j)
+		return v * val * (1 - val)
+	}, forwardGradients)
+
+	return nil, forwardGradients
 }
 
 func (layer *SoftmaxLayer) GetShape() mat.Matrix {
