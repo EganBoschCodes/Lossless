@@ -10,7 +10,7 @@ type SigmoidLayer struct {
 	n_inputs int
 }
 
-func (layer *SigmoidLayer) Initialize(n_inputs int, _ int) {
+func (layer *SigmoidLayer) Initialize(n_inputs int) {
 	layer.n_inputs = n_inputs
 }
 
@@ -39,3 +39,7 @@ func (layer *SigmoidLayer) GetShape() mat.Matrix {
 }
 
 func (layer *SigmoidLayer) ApplyShift(shift mat.Matrix, scale float64) {}
+
+func (layer *SigmoidLayer) NumOutputs() int {
+	return layer.n_inputs
+}

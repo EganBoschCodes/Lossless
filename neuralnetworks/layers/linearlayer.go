@@ -7,12 +7,13 @@ import (
 )
 
 type LinearLayer struct {
-	weights   mat.Matrix
-	n_inputs  int
-	n_outputs int
+	weights  mat.Matrix
+	n_inputs int
+	Outputs  int
 }
 
-func (layer *LinearLayer) Initialize(numInputs int, numOutputs int) {
+func (layer *LinearLayer) Initialize(numInputs int) {
+	numOutputs := layer.Outputs
 	data := make([]float64, (numInputs+1)*numOutputs)
 	for i := range data {
 		data[i] = rand.NormFloat64()
@@ -20,20 +21,19 @@ func (layer *LinearLayer) Initialize(numInputs int, numOutputs int) {
 	layer.weights = mat.NewDense(numOutputs, numInputs+1, data)
 
 	layer.n_inputs = numInputs + 1
-	layer.n_outputs = numOutputs
 }
 
 func (layer *LinearLayer) Pass(input []float64) []float64 {
 	inputVec := mat.NewVecDense(layer.n_inputs, input)
 
-	output := mat.NewVecDense(layer.n_outputs, nil)
+	output := mat.NewVecDense(layer.Outputs, nil)
 	output.MulVec(layer.weights, inputVec)
 
-	outputSlice := make([]float64, layer.n_outputs+1)
-	for i := 0; i < layer.n_outputs; i++ {
+	outputSlice := make([]float64, layer.Outputs+1)
+	for i := 0; i < layer.Outputs; i++ {
 		outputSlice[i] = output.AtVec(i)
 	}
-	outputSlice[layer.n_outputs] = 1
+	outputSlice[layer.Outputs] = 1
 	return outputSlice
 }
 
@@ -61,4 +61,8 @@ func (layer *LinearLayer) GetShape() mat.Matrix {
 func (layer *LinearLayer) ApplyShift(shift mat.Matrix, scale float64) {
 	shift.(*mat.Dense).Scale(scale, shift)
 	layer.weights.(*mat.Dense).Add(layer.weights, shift)
+}
+
+func (layer *LinearLayer) NumOutputs() int {
+	return layer.Outputs
 }

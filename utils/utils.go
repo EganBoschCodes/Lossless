@@ -26,6 +26,18 @@ func Max(a int, b int) int {
 	return b
 }
 
+func GetMaxIndex(values []float64) int {
+	maxVal := math.Inf(-1)
+	maxInd := -1
+	for i, val := range values {
+		if val > maxVal {
+			maxVal = val
+			maxInd = i
+		}
+	}
+	return maxInd
+}
+
 func GetDistribution(values []float64) (float64, float64) {
 	mean := 0.0
 	for _, val := range values {

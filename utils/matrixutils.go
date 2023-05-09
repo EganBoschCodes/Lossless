@@ -1,11 +1,14 @@
 package utils
 
 import (
+	"fmt"
+	"math"
+
 	"gonum.org/v1/gonum/mat"
 )
 
 /*
-	Matrix Convolution:
+	Standard Matrix Convolution:
 	----------------------------------------------------------------------------------
 	Used for convolutional neural networks, this will convolve a matrix with a kernel.
 	It will produce an output matrix with dimensions equal to that of the data matrix
@@ -102,6 +105,76 @@ func ConvolveWithPadding(data mat.Matrix, kernel mat.Matrix) mat.Matrix {
 
 	for outputCounter < subdivisions*subdivisions {
 		outputCounter += <-outputChannel
+	}
+
+	return output
+}
+
+/*
+	MaxPooling:
+	----------------------------------------------------------------------------------
+	Used as a kind of dimensionality reduction for convolutional neural nets, as the
+	convolution layers usually multiply the amount of values passed to the next layer
+	instead of reducing them.
+*/
+
+func MaxPool(data mat.Matrix, width int, height int) mat.Matrix {
+	dr, dc := data.Dims()
+
+	if dr%width != 0 || dc%height != 0 {
+		fmt.Printf("A matrix of dimensions %d by %d cannot be max-pooled by a sample size of %d by %d.\n", dr, dc, width, height)
+		return nil
+	}
+
+	output := mat.NewDense(dr/width, dc/height, nil)
+	or, oc := output.Dims()
+	for r := 0; r < or; r++ {
+		for c := 0; c < oc; c++ {
+			max := math.Inf(-1)
+			for i := 0; i < width; i++ {
+				for j := 0; j < height; j++ {
+					max = math.Max(max, data.At(r*width+i, c*height+j))
+				}
+			}
+			output.Set(r, c, max)
+		}
+	}
+
+	return output
+}
+
+/*
+	MaxPoolMap:
+	----------------------------------------------------------------------------------
+	Used again as a tool for backpropagation, this returns a matrix in the shape of the
+	data input with 1's where the maximum value in each block maintains its value, and
+	0's everywhere else.
+*/
+
+func MaxPoolMap(data mat.Matrix, width int, height int) mat.Matrix {
+	dr, dc := data.Dims()
+
+	if dr%width != 0 || dc%height != 0 {
+		fmt.Printf("A matrix of dimensions %d by %d cannot be max-pooled by a sample size of %d by %d.\n", dr, dc, width, height)
+		return nil
+	}
+
+	output := mat.NewDense(dr, dc, nil)
+
+	for r := 0; r < dr; r += width {
+		for c := 0; c < dc; c += height {
+			max := math.Inf(-1)
+			maxr, maxc := -1, -1
+			for i := 0; i < width; i++ {
+				for j := 0; j < height; j++ {
+					if data.At(r+i, c+j) > max {
+						max = data.At(r+i, c+j)
+						maxr, maxc = i, j
+					}
+				}
+			}
+			output.Set(r+maxr, c+maxc, max)
+		}
 	}
 
 	return output

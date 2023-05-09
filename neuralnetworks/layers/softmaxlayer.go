@@ -10,7 +10,7 @@ type SoftmaxLayer struct {
 	n_inputs int
 }
 
-func (layer *SoftmaxLayer) Initialize(n_inputs int, _ int) {
+func (layer *SoftmaxLayer) Initialize(n_inputs int) {
 	layer.n_inputs = n_inputs
 }
 
@@ -50,3 +50,7 @@ func (layer *SoftmaxLayer) GetShape() mat.Matrix {
 }
 
 func (layer *SoftmaxLayer) ApplyShift(shift mat.Matrix, scale float64) {}
+
+func (layer *SoftmaxLayer) NumOutputs() int {
+	return layer.n_inputs
+}

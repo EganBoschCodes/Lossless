@@ -5,7 +5,6 @@ import (
 	"go-ml-library/datasets"
 	"go-ml-library/neuralnetworks/layers"
 	"go-ml-library/utils"
-	"math"
 	"time"
 
 	"gonum.org/v1/gonum/mat"
@@ -17,20 +16,13 @@ type Perceptron struct {
 	LEARNING_RATE float64
 }
 
-func (network *Perceptron) Initialize(sizes []int, ls []layers.Layer) {
-	i := 0
-
+func (network *Perceptron) Initialize(numInputs int, ls []layers.Layer) {
 	// Initialize all of the layers with the proper sizing.
-	// Since only linear layers have different numbers of inputs and outputs, I don't move the counter for any non-linear layers.
 	network.Layers = ls
+	lastOutput := numInputs
 	for index, layer := range ls {
-		switch layer.(type) {
-		case *layers.LinearLayer:
-			network.Layers[index].Initialize(sizes[i], sizes[i+1])
-			i += 1
-		default:
-			network.Layers[index].Initialize(sizes[i], sizes[i])
-		}
+		network.Layers[index].Initialize(lastOutput)
+		lastOutput = layer.NumOutputs()
 	}
 
 	network.BATCH_SIZE = 16
@@ -115,7 +107,7 @@ func (network *Perceptron) getLoss(datapoint datasets.DataPoint, lossChannel cha
 		loss += 0.5 * (output[i] - target[i]) * (output[i] - target[i])
 	}
 
-	wasCorrect := utils.Reduce(output, math.Max) == output[datasets.FromOneHot(target)]
+	wasCorrect := utils.GetMaxIndex(output) == datasets.FromOneHot(target)
 
 	lossChannel <- loss
 	correctChannel <- wasCorrect
