@@ -21,11 +21,11 @@ func (layer *ReluLayer) Pass(input mat.Matrix) mat.Matrix {
 	return mat.NewDense(r, c, utils.Map(rawData, func(a float64) float64 { return math.Max(a, 0.0) }))
 }
 
-func (layer *ReluLayer) Back(inputs mat.Matrix, _ mat.Matrix, forwardGradients mat.Matrix) (mat.Matrix, mat.Matrix) {
+func (layer *ReluLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (mat.Matrix, mat.Matrix) {
 	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
 		val := inputs.At(i, j)
-		if val < 0 {
-			return 0
+		if val <= 0.0 {
+			return 0.1 * v
 		}
 		return v
 	}, forwardGradients)
