@@ -19,7 +19,7 @@ func main() {
 		})
 
 	network.BATCH_SIZE = 32
-	network.LEARNING_RATE = 0.03
+	network.LEARNING_RATE = 0.08
 
 	dataset := mnist.GetMNISTTrain()
 	datasets.NormalizeInputs(dataset)
