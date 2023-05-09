@@ -13,16 +13,18 @@ func main() {
 	network.Initialize(784,
 		[]layers.Layer{
 			&layers.LinearLayer{Outputs: 128},
-			&layers.TanhLayer{},
+			&layers.ReluLayer{},
+			&layers.SigmoidLayer{},
 			&layers.LinearLayer{Outputs: 10},
+			&layers.ReluLayer{},
 			&layers.SoftmaxLayer{},
 		})
 
 	network.BATCH_SIZE = 32
-	network.LEARNING_RATE = 0.03
+	network.LEARNING_RATE = 0.1
 
 	dataset := mnist.GetMNISTTrain()
 	datasets.NormalizeInputs(dataset)
 
-	network.Train(dataset, time.Second*30)
+	network.Train(dataset, time.Second*60)
 }
