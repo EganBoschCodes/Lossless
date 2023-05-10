@@ -185,17 +185,6 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Dur
 
 	for time.Since(start) < timespan {
 
-		steps := float64(time.Since(start)*1000/timespan) / 10
-		progressBar := ""
-		for i := 0; i < 20; i++ {
-			if i < int(steps)/5 {
-				progressBar = fmt.Sprint(progressBar, "▒")
-				continue
-			}
-			progressBar = fmt.Sprint(progressBar, " ")
-		}
-		fmt.Printf("\rTraining Progress : -{%s}- (%.1f%%)  ", progressBar, steps)
-
 		// Prepare to capture the weight shifts from each datapoint in the batch
 		shifts := network.getEmptyShift()
 		shiftChannel := make(chan []layers.ShiftType)
@@ -226,9 +215,19 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Dur
 		for i, shift := range shifts {
 			shift.Apply(network.Layers[i], network.LEARNING_RATE)
 		}
-	}
 
-	fmt.Println("\rTraining Progress : -{▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒}- (100.0%)")
+		// Just let me know how much time is left
+		steps := float64(time.Since(start)*1000/timespan) / 10
+		progressBar := ""
+		for i := 0; i < 20; i++ {
+			if i < int(steps)/5 {
+				progressBar = fmt.Sprint(progressBar, "▒")
+				continue
+			}
+			progressBar = fmt.Sprint(progressBar, " ")
+		}
+		fmt.Printf("\rTraining Progress : -{%s}- (%.1f%%)  ", progressBar, steps)
+	}
 
 	// Log how we did
 	loss, correctGuesses = network.getTotalLoss(dataset)
