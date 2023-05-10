@@ -21,6 +21,7 @@ func main() {
 			&layers.MaxPoolLayer{
 				PoolShape: layers.Shape{Rows: 2, Cols: 2},
 			},
+			&layers.TanhLayer{},
 			&layers.Conv2DLayer{
 				InputShape:  layers.Shape{Rows: 13, Cols: 13},
 				KernelShape: layers.Shape{Rows: 3, Cols: 3},
@@ -29,15 +30,13 @@ func main() {
 			&layers.FlattenLayer{},
 			&layers.TanhLayer{},
 			&layers.LinearLayer{Outputs: 128},
-			&layers.ReluLayer{},
-			&layers.SigmoidLayer{},
+			&layers.TanhLayer{},
 			&layers.LinearLayer{Outputs: 10},
-			&layers.ReluLayer{},
 			&layers.SoftmaxLayer{},
 		})
 
 	network.BATCH_SIZE = 32
-	network.LEARNING_RATE = 0.05
+	network.LEARNING_RATE = 0.02
 
 	dataset := mnist.GetMNISTTrain()
 	datasets.NormalizeInputs(dataset)

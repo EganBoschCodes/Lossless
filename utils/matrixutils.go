@@ -178,7 +178,7 @@ func MaxPoolMap(data mat.Matrix, width int, height int) mat.Matrix {
 					}
 				}
 			}
-			output.Set(r+maxr, c+maxc, max)
+			output.Set(r+maxr, c+maxc, 1)
 		}
 	}
 

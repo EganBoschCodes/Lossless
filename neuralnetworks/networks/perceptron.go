@@ -176,7 +176,7 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Dur
 	loss, correctGuesses := network.getTotalLoss(dataset)
 	fmt.Printf("Beginning Loss: %.3f\n", loss)
 	correctPercentage := float64(correctGuesses) / float64(utils.Min(len(dataset), 3000)) * 100
-	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n", correctGuesses, utils.Min(len(dataset), 3000), correctPercentage)
+	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n\n", correctGuesses, utils.Min(len(dataset), 3000), correctPercentage)
 
 	// Start the tracking data
 	start := time.Now()
@@ -184,6 +184,18 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Dur
 	epochs := 0
 
 	for time.Since(start) < timespan {
+
+		steps := float64(time.Since(start)*1000/timespan) / 10
+		progressBar := ""
+		for i := 0; i < 20; i++ {
+			if i < int(steps)/5 {
+				progressBar = fmt.Sprint(progressBar, "▒")
+				continue
+			}
+			progressBar = fmt.Sprint(progressBar, " ")
+		}
+		fmt.Printf("\rTraining Progress : -{%s}- (%.1f%%)  ", progressBar, steps)
+
 		// Prepare to capture the weight shifts from each datapoint in the batch
 		shifts := network.getEmptyShift()
 		shiftChannel := make(chan []layers.ShiftType)
@@ -216,9 +228,11 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Dur
 		}
 	}
 
+	fmt.Println("\rTraining Progress : -{▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒}- (100.0%)")
+
 	// Log how we did
 	loss, correctGuesses = network.getTotalLoss(dataset)
-	fmt.Printf("Ending Loss: %.3f\n", loss)
+	fmt.Printf("\nEnding Loss: %.3f\n", loss)
 
 	correctPercentage = float64(correctGuesses) / float64(utils.Min(len(dataset), 3000)) * 100
 	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n", correctGuesses, utils.Min(len(dataset), 3000), correctPercentage)
