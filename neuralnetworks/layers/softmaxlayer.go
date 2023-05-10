@@ -37,11 +37,7 @@ func (layer *SoftmaxLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGr
 	return &NilShift{}, forwardGradients
 }
 
-func (layer *SoftmaxLayer) GetShape() mat.Matrix {
-	return nil
-}
-
-func (layer *SoftmaxLayer) ApplyShift(shift mat.Matrix, scale float64) {}
+func (layer *SoftmaxLayer) GetShape() mat.Matrix { return nil }
 
 func (layer *SoftmaxLayer) NumOutputs() int {
 	return layer.n_inputs

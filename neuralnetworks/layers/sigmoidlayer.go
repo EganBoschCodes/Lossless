@@ -32,11 +32,7 @@ func (layer *SigmoidLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGr
 	return &NilShift{}, forwardGradients
 }
 
-func (layer *SigmoidLayer) GetShape() mat.Matrix {
-	return nil
-}
-
-func (layer *SigmoidLayer) ApplyShift(shift mat.Matrix, scale float64) {}
+func (layer *SigmoidLayer) GetShape() mat.Matrix { return nil }
 
 func (layer *SigmoidLayer) NumOutputs() int {
 	return layer.n_inputs

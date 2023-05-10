@@ -7,6 +7,10 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
+func GetSlice(m mat.Matrix) []float64 {
+	return m.(*mat.Dense).RawMatrix().Data
+}
+
 /*
 	Standard Matrix Convolution:
 	----------------------------------------------------------------------------------

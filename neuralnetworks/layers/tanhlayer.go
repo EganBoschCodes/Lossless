@@ -27,11 +27,7 @@ func (layer *TanhLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradi
 	return &NilShift{}, forwardGradients
 }
 
-func (layer *TanhLayer) GetShape() mat.Matrix {
-	return nil
-}
-
-func (layer *TanhLayer) ApplyShift(shift mat.Matrix, scale float64) {}
+func (layer *TanhLayer) GetShape() mat.Matrix { return nil }
 
 func (layer *TanhLayer) NumOutputs() int {
 	return layer.n_inputs

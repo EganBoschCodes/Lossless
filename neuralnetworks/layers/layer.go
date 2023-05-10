@@ -37,7 +37,6 @@ type WeightShift struct {
 
 func (w *WeightShift) Apply(layer Layer, scale float64) {
 	w.shift.(*mat.Dense).Scale(scale, w.shift)
-	//utils.PrintMat("wshift", w.shift)
 	layer.(*LinearLayer).weights.(*mat.Dense).Add(layer.(*LinearLayer).weights, w.shift)
 }
 
@@ -51,10 +50,10 @@ type KernelShift struct {
 }
 
 func (k *KernelShift) Apply(layer Layer, scale float64) {
-	//for i, shift := range k.shifts {
-	//shift.(*mat.Dense).Scale(scale, shift)
-	//layer.(*Conv2DLayer).kernels[i].(*mat.Dense).Add(layer.(*Conv2DLayer).kernels[i], shift)
-	//}
+	for i, shift := range k.shifts {
+		shift.(*mat.Dense).Scale(scale, shift)
+		layer.(*Conv2DLayer).kernels[i].(*mat.Dense).Add(layer.(*Conv2DLayer).kernels[i], shift)
+	}
 }
 
 func (k *KernelShift) Combine(k2 ShiftType) ShiftType {
