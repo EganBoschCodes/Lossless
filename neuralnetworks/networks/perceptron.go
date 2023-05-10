@@ -58,7 +58,7 @@ func (network *Perceptron) Evaluate(input []float64) []float64 {
 	to the channel so that we can add it to the batch's shift.
 */
 
-func (network *Perceptron) learn(input []float64, target []float64, channel chan []mat.Matrix) {
+func (network *Perceptron) learn(input []float64, target []float64, channel chan []layers.ShiftType) {
 	// Done very similarly to Evaluate, but we just cache the inputs basically so we can use them to do backprop.
 	inputCache := make([]mat.Matrix, 0)
 
@@ -79,12 +79,12 @@ func (network *Perceptron) learn(input []float64, target []float64, channel chan
 	gradientMat := mat.NewDense(len(gradient), 1, gradient)
 
 	// Get all the shifts for each layer
-	shifts := make([]mat.Matrix, len(network.Layers))
+	shifts := make([]layers.ShiftType, len(network.Layers))
 	for i := len(network.Layers) - 1; i >= 0; i-- {
 		layer := network.Layers[i]
 		shift, gradientTemp := layer.Back(inputCache[i], inputCache[i+1], gradientMat)
 
-		gradientMat = mat.DenseCopyOf(gradientTemp)
+		gradientMat = gradientTemp.(*mat.Dense)
 		shifts[i] = shift
 	}
 
@@ -152,10 +152,10 @@ func (network *Perceptron) getTotalLoss(dataset []datasets.DataPoint) (float64, 
 	of each datapoint from the batch into.
 */
 
-func (network *Perceptron) getEmptyShift() []mat.Matrix {
-	shifts := make([]mat.Matrix, len(network.Layers))
-	for i, layer := range network.Layers {
-		shifts[i] = layer.GetShape()
+func (network *Perceptron) getEmptyShift() []layers.ShiftType {
+	shifts := make([]layers.ShiftType, len(network.Layers))
+	for i := range network.Layers {
+		shifts[i] = &layers.NilShift{}
 	}
 	return shifts
 }
@@ -182,7 +182,7 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Dur
 	for time.Since(start) < timespan {
 		// Prepare to capture the weight shifts from each datapoint in the batch
 		shifts := network.getEmptyShift()
-		shiftChannel := make(chan []mat.Matrix)
+		shiftChannel := make(chan []layers.ShiftType)
 
 		// Start the weight calculations with goroutines
 		for item := 0; item < network.BATCH_SIZE; item++ {
@@ -201,16 +201,13 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Dur
 		for item := 0; item < network.BATCH_SIZE; item++ {
 			datapointShifts := <-shiftChannel
 			for i, layerShift := range datapointShifts {
-				if layerShift == nil {
-					continue
-				}
-				shifts[i].(*mat.Dense).Add(layerShift, shifts[i])
+				shifts[i] = shifts[i].Combine(layerShift)
 			}
 		}
 
 		// Once all shifts have been added in, apply the averaged shifts to all layers
 		for i, shift := range shifts {
-			network.Layers[i].ApplyShift(shift, network.LEARNING_RATE)
+			shift.Apply(network.Layers[i], network.LEARNING_RATE)
 		}
 	}
 

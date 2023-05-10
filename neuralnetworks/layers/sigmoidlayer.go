@@ -23,13 +23,13 @@ func (layer *SigmoidLayer) Pass(input mat.Matrix) mat.Matrix {
 	return input
 }
 
-func (layer *SigmoidLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (mat.Matrix, mat.Matrix) {
+func (layer *SigmoidLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
 	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
 		val := outputs.At(i, j)
 		return v * val * (1 - val)
 	}, forwardGradients)
 
-	return nil, forwardGradients
+	return &NilShift{}, forwardGradients
 }
 
 func (layer *SigmoidLayer) GetShape() mat.Matrix {

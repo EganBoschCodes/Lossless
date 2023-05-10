@@ -19,12 +19,12 @@ func (layer *TanhLayer) Pass(input mat.Matrix) mat.Matrix {
 	return input
 }
 
-func (layer *TanhLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (mat.Matrix, mat.Matrix) {
+func (layer *TanhLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
 	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
 		val := outputs.At(i, j)
 		return v * (1 - val*val)
 	}, forwardGradients)
-	return nil, forwardGradients
+	return &NilShift{}, forwardGradients
 }
 
 func (layer *TanhLayer) GetShape() mat.Matrix {

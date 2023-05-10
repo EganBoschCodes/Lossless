@@ -69,3 +69,11 @@ func Map(vals []float64, mapfunc func(float64) float64) []float64 {
 	}
 	return mappedVals
 }
+
+func Reverse(vals []float64) []float64 {
+	rev := make([]float64, len(vals))
+	for i, val := range vals {
+		rev[len(vals)-1-i] = val
+	}
+	return rev
+}
