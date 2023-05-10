@@ -1,7 +1,6 @@
 package main
 
 import (
-	"go-ml-library/datasets"
 	"go-ml-library/datasets/mnist"
 	"go-ml-library/neuralnetworks/layers"
 	"go-ml-library/neuralnetworks/networks"
@@ -38,8 +37,8 @@ func main() {
 	network.BATCH_SIZE = 32
 	network.LEARNING_RATE = 0.02
 
-	dataset := mnist.GetMNISTTrain()
-	datasets.NormalizeInputs(dataset)
+	trainingData := mnist.GetMNISTTrain()
+	testData := mnist.GetMNISTTest()
 
-	network.Train(dataset, time.Second*900)
+	network.Train(trainingData, testData, time.Second*900)
 }

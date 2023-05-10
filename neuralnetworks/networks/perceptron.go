@@ -127,7 +127,7 @@ func (network *Perceptron) getTotalLoss(dataset []datasets.DataPoint) (float64, 
 	loss := 0.0
 	correctGuesses := 0
 
-	sampleSize := utils.Min(len(dataset), 3000)
+	sampleSize := len(dataset)
 
 	lossChannel := make(chan float64)
 	correctChannel := make(chan bool)
@@ -171,12 +171,12 @@ func (network *Perceptron) getEmptyShift() []layers.ShiftType {
 	want to train, then goes about doing so.
 */
 
-func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Duration) {
+func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []datasets.DataPoint, timespan time.Duration) {
 	// Get a baseline
-	loss, correctGuesses := network.getTotalLoss(dataset)
+	loss, correctGuesses := network.getTotalLoss(testingData)
 	fmt.Printf("Beginning Loss: %.3f\n", loss)
-	correctPercentage := float64(correctGuesses) / float64(utils.Min(len(dataset), 3000)) * 100
-	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n\n", correctGuesses, utils.Min(len(dataset), 3000), correctPercentage)
+	correctPercentage := float64(correctGuesses) / float64(len(testingData)) * 100
+	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n\n", correctGuesses, len(testingData), correctPercentage)
 
 	// Start the tracking data
 	start := time.Now()
@@ -230,10 +230,9 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Dur
 	}
 
 	// Log how we did
-	loss, correctGuesses = network.getTotalLoss(dataset)
-	fmt.Printf("\nEnding Loss: %.3f\n", loss)
-
-	correctPercentage = float64(correctGuesses) / float64(utils.Min(len(dataset), 3000)) * 100
-	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n", correctGuesses, utils.Min(len(dataset), 3000), correctPercentage)
+	loss, correctGuesses = network.getTotalLoss(testingData)
+	fmt.Printf("\nFinal Loss: %.3f\n", loss)
+	correctPercentage = float64(correctGuesses) / float64(len(testingData)) * 100
+	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n\n", correctGuesses, len(testingData), correctPercentage)
 	fmt.Println("Trained Epochs:", epochs, ", Trained Datapoints:", epochs*len(dataset)+datapointIndex)
 }
