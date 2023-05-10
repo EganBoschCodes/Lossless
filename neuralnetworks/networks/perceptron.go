@@ -5,6 +5,7 @@ import (
 	"go-ml-library/datasets"
 	"go-ml-library/neuralnetworks/layers"
 	"go-ml-library/utils"
+	"math/rand"
 	"time"
 
 	"gonum.org/v1/gonum/mat"
@@ -76,15 +77,15 @@ func (network *Perceptron) learn(input []float64, target []float64, channel chan
 		// Basic cross-entropy loss gradient.
 		gradient[i] = (target[i] - inputMat.(*mat.Dense).At(i, 0))
 	}
-	gradientMat := mat.NewDense(len(gradient), 1, gradient)
+	var gradientMat mat.Matrix
+	gradientMat = mat.NewDense(len(gradient), 1, gradient)
 
 	// Get all the shifts for each layer
 	shifts := make([]layers.ShiftType, len(network.Layers))
 	for i := len(network.Layers) - 1; i >= 0; i-- {
 		layer := network.Layers[i]
 		shift, gradientTemp := layer.Back(inputCache[i], inputCache[i+1], gradientMat)
-
-		gradientMat = gradientTemp.(*mat.Dense)
+		gradientMat = gradientTemp
 		shifts[i] = shift
 	}
 
@@ -126,14 +127,17 @@ func (network *Perceptron) getTotalLoss(dataset []datasets.DataPoint) (float64, 
 	loss := 0.0
 	correctGuesses := 0
 
+	sampleSize := utils.Min(len(dataset), 3000)
+
 	lossChannel := make(chan float64)
 	correctChannel := make(chan bool)
-	for _, datapoint := range dataset {
+	for i := 0; i < sampleSize; i++ {
+		datapoint := dataset[i]
 		go network.getLoss(datapoint, lossChannel, correctChannel)
 	}
 
 	valuesRecieved := 0
-	for valuesRecieved < len(dataset) {
+	for valuesRecieved < sampleSize {
 		loss += <-lossChannel
 		if <-correctChannel {
 			correctGuesses++
@@ -171,8 +175,8 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Dur
 	// Get a baseline
 	loss, correctGuesses := network.getTotalLoss(dataset)
 	fmt.Printf("Beginning Loss: %.3f\n", loss)
-	correctPercentage := float64(correctGuesses) / float64(len(dataset)) * 100
-	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n", correctGuesses, len(dataset), correctPercentage)
+	correctPercentage := float64(correctGuesses) / float64(utils.Min(len(dataset), 3000)) * 100
+	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n", correctGuesses, utils.Min(len(dataset), 3000), correctPercentage)
 
 	// Start the tracking data
 	start := time.Now()
@@ -193,6 +197,7 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Dur
 			datapointIndex++
 			if datapointIndex >= len(dataset) {
 				datapointIndex = 0
+				rand.Shuffle(len(dataset), func(i, j int) { dataset[i], dataset[j] = dataset[j], dataset[i] })
 				epochs++
 			}
 		}
@@ -215,7 +220,7 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, timespan time.Dur
 	loss, correctGuesses = network.getTotalLoss(dataset)
 	fmt.Printf("Ending Loss: %.3f\n", loss)
 
-	correctPercentage = float64(correctGuesses) / float64(len(dataset)) * 100
-	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n", correctGuesses, len(dataset), correctPercentage)
+	correctPercentage = float64(correctGuesses) / float64(utils.Min(len(dataset), 3000)) * 100
+	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n", correctGuesses, utils.Min(len(dataset), 3000), correctPercentage)
 	fmt.Println("Trained Epochs:", epochs, ", Trained Datapoints:", epochs*len(dataset)+datapointIndex)
 }

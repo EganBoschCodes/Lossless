@@ -18,6 +18,7 @@ type Conv2DLayer struct {
 	InputShape  Shape
 	KernelShape Shape
 	NumKernels  int
+	FirstLayer  bool
 
 	inputMatrices   int
 	inputLen        int
@@ -84,13 +85,17 @@ func (layer *Conv2DLayer) Back(inputs mat.Matrix, _ mat.Matrix, forwardGradients
 		}
 	}
 
+	if layer.FirstLayer {
+		return &KernelShift{shifts: allShifts}, nil
+	}
+
 	// Calculate the gradients to pass back
 
 	// Hacky way to avoid doing a whole lot of list appending later; I create a slice, then a bunch of
 	// matrices spaced out along the slice. As the matrices get modified, so does the underlying slice,
 	// then at the end I have a slice containing all the relevant data pre-concatenated.
 	passbackSlice := make([]float64, layer.inputMatrices*layer.inputLen)
-	/*passbackMatrices := make([]mat.Matrix, layer.inputMatrices)
+	passbackMatrices := make([]mat.Matrix, layer.inputMatrices)
 	for i := range passbackMatrices {
 		passbackMatrices[i] = mat.NewDense(layer.InputShape.Rows, layer.InputShape.Cols, passbackSlice[i*layer.inputLen:(i+1)*layer.inputLen])
 	}
@@ -101,7 +106,7 @@ func (layer *Conv2DLayer) Back(inputs mat.Matrix, _ mat.Matrix, forwardGradients
 		correspondingGradient := mat.NewDense(layer.outputShape.Rows, layer.outputShape.Cols, gradientSlice[i*layer.outputLen:(i+1)*layer.outputLen])
 
 		passbackMatrices[inputIndex].(*mat.Dense).Add(passbackMatrices[inputIndex], utils.ConvolveWithPadding(correspondingGradient, rotatedKernel))
-	}*/
+	}
 
 	return &KernelShift{shifts: allShifts}, mat.NewDense(layer.inputMatrices*layer.InputShape.Rows, layer.InputShape.Cols, passbackSlice)
 }

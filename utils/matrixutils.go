@@ -171,6 +171,7 @@ func MaxPoolMap(data mat.Matrix, width int, height int) mat.Matrix {
 			maxr, maxc := -1, -1
 			for i := 0; i < width; i++ {
 				for j := 0; j < height; j++ {
+					output.Set(r+i, c+j, 0.1)
 					if data.At(r+i, c+j) > max {
 						max = data.At(r+i, c+j)
 						maxr, maxc = i, j
@@ -182,6 +183,19 @@ func MaxPoolMap(data mat.Matrix, width int, height int) mat.Matrix {
 	}
 
 	return output
+}
+
+func UnMaxPool(data mat.Matrix, width int, height int) mat.Matrix {
+	dr, dc := data.Dims()
+
+	ret := mat.NewDense(dr*width, dc*height, nil)
+	for r := 0; r < dr*width; r++ {
+		for c := 0; c < dc*height; c++ {
+			ret.Set(r, c, data.At(r/width, c/height))
+		}
+	}
+
+	return ret
 }
 
 func DenseLike(m mat.Matrix) mat.Matrix {

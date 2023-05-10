@@ -15,7 +15,16 @@ func main() {
 			&layers.Conv2DLayer{
 				InputShape:  layers.Shape{Rows: 28, Cols: 28},
 				KernelShape: layers.Shape{Rows: 3, Cols: 3},
-				NumKernels:  4,
+				NumKernels:  6,
+				FirstLayer:  true,
+			},
+			&layers.MaxPoolLayer{
+				PoolShape: layers.Shape{Rows: 2, Cols: 2},
+			},
+			&layers.Conv2DLayer{
+				InputShape:  layers.Shape{Rows: 13, Cols: 13},
+				KernelShape: layers.Shape{Rows: 3, Cols: 3},
+				NumKernels:  12,
 			},
 			&layers.FlattenLayer{},
 			&layers.TanhLayer{},
@@ -28,19 +37,10 @@ func main() {
 		})
 
 	network.BATCH_SIZE = 32
-	network.LEARNING_RATE = 0.1
+	network.LEARNING_RATE = 0.05
 
 	dataset := mnist.GetMNISTTrain()
 	datasets.NormalizeInputs(dataset)
 
-	network.Train(dataset, time.Second*180)
-
-	/*conv := layers.Conv2DLayer{
-		InputShape:  layers.Shape{Rows: 2, Cols: 2},
-		KernelShape: layers.Shape{Rows: 1, Cols: 1},
-		NumKernels:  4,
-	}
-	conv.Initialize(8)
-
-	utils.PrintMat("output", conv.Pass(mat.NewDense(2, 4, []float64{1, 2, 3, 4, 5, 6, 7, 8})))*/
+	network.Train(dataset, time.Second*900)
 }
