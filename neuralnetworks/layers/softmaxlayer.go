@@ -42,3 +42,9 @@ func (layer *SoftmaxLayer) GetShape() mat.Matrix { return nil }
 func (layer *SoftmaxLayer) NumOutputs() int {
 	return layer.n_inputs
 }
+
+func (layer *SoftmaxLayer) ToBytes() []byte {
+	return make([]byte, 0)
+}
+
+func (layer *SoftmaxLayer) FromBytes(bytes []byte) {}

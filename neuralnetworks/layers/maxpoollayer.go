@@ -1,6 +1,7 @@
 package layers
 
 import (
+	"go-ml-library/neuralnetworks/save"
 	"go-ml-library/utils"
 
 	"gonum.org/v1/gonum/mat"
@@ -8,7 +9,8 @@ import (
 
 type MaxPoolLayer struct {
 	PoolShape Shape
-	n_inputs  int
+
+	n_inputs int
 }
 
 func (layer *MaxPoolLayer) Initialize(n_inputs int) {
@@ -32,4 +34,14 @@ func (layer *MaxPoolLayer) Back(inputs mat.Matrix, _ mat.Matrix, forwardGradient
 
 func (layer *MaxPoolLayer) NumOutputs() int {
 	return layer.n_inputs / layer.PoolShape.Rows / layer.PoolShape.Cols
+}
+
+func (layer *MaxPoolLayer) ToBytes() []byte {
+	saveBytes := save.ConstantsToBytes(layer.PoolShape.Rows, layer.PoolShape.Cols)
+	return saveBytes
+}
+
+func (layer *MaxPoolLayer) FromBytes(bytes []byte) {
+	constInts := save.ConstantsFromBytes(bytes)
+	layer.PoolShape = Shape{Rows: constInts[0], Cols: constInts[1]}
 }

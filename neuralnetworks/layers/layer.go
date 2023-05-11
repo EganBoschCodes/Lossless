@@ -17,6 +17,9 @@ type Layer interface {
 	Pass(mat.Matrix) mat.Matrix
 	Back(mat.Matrix, mat.Matrix, mat.Matrix) (ShiftType, mat.Matrix)
 	NumOutputs() int
+
+	ToBytes() []byte
+	FromBytes([]byte)
 }
 
 type ShiftType interface {
@@ -61,4 +64,50 @@ func (k *KernelShift) Combine(k2 ShiftType) ShiftType {
 		k.shifts[i].(*mat.Dense).Add(k.shifts[i], k2.(*KernelShift).shifts[i])
 	}
 	return k
+}
+
+func IndexToLayer(index int) Layer {
+	switch index {
+	case 0:
+		return &LinearLayer{}
+	case 1:
+		return &ReluLayer{}
+	case 2:
+		return &SigmoidLayer{}
+	case 3:
+		return &TanhLayer{}
+	case 4:
+		return &SoftmaxLayer{}
+	case 5:
+		return &Conv2DLayer{}
+	case 6:
+		return &MaxPoolLayer{}
+	case 7:
+		return &FlattenLayer{}
+	default:
+		return nil
+	}
+}
+
+func LayerToIndex(layer Layer) int {
+	switch layer.(type) {
+	case *LinearLayer:
+		return 0
+	case *ReluLayer:
+		return 1
+	case *SigmoidLayer:
+		return 2
+	case *TanhLayer:
+		return 3
+	case *SoftmaxLayer:
+		return 4
+	case *Conv2DLayer:
+		return 5
+	case *MaxPoolLayer:
+		return 6
+	case *FlattenLayer:
+		return 7
+	default:
+		return -1
+	}
 }

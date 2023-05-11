@@ -32,3 +32,9 @@ func (layer *TanhLayer) GetShape() mat.Matrix { return nil }
 func (layer *TanhLayer) NumOutputs() int {
 	return layer.n_inputs
 }
+
+func (layer *TanhLayer) ToBytes() []byte {
+	return make([]byte, 0)
+}
+
+func (layer *TanhLayer) FromBytes(bytes []byte) {}

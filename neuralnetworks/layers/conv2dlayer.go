@@ -2,6 +2,7 @@ package layers
 
 import (
 	"fmt"
+	"go-ml-library/neuralnetworks/save"
 	"go-ml-library/utils"
 	"math/rand"
 
@@ -14,12 +15,12 @@ type Shape struct {
 }
 
 type Conv2DLayer struct {
-	kernels     []mat.Matrix
 	InputShape  Shape
 	KernelShape Shape
 	NumKernels  int
 	FirstLayer  bool
 
+	kernels         []mat.Matrix
 	inputMatrices   int
 	inputLen        int
 	kernelsPerInput int
@@ -28,7 +29,7 @@ type Conv2DLayer struct {
 }
 
 func (layer *Conv2DLayer) Initialize(numInputs int) {
-
+	// Computing useful constants for consistent use
 	layer.inputMatrices = numInputs / (layer.InputShape.Rows * layer.InputShape.Cols)
 	layer.kernelsPerInput = layer.NumKernels / layer.inputMatrices
 	layer.inputLen = layer.InputShape.Rows * layer.InputShape.Cols
@@ -44,6 +45,11 @@ func (layer *Conv2DLayer) Initialize(numInputs int) {
 	}
 	layer.outputLen = layer.outputShape.Rows * layer.outputShape.Cols
 
+	// If the layer has already had it's kernels initialized elsewhere (like from a save file) don't bother populating with randoms
+	if layer.kernels != nil {
+		return
+	}
+
 	layer.kernels = make([]mat.Matrix, layer.NumKernels)
 	for i := range layer.kernels {
 		randweights := make([]float64, layer.KernelShape.Rows*layer.KernelShape.Cols)
@@ -52,6 +58,7 @@ func (layer *Conv2DLayer) Initialize(numInputs int) {
 		}
 		layer.kernels[i] = mat.NewDense(layer.KernelShape.Rows, layer.KernelShape.Cols, randweights)
 	}
+
 }
 
 func (layer *Conv2DLayer) Pass(input mat.Matrix) mat.Matrix {
@@ -113,4 +120,27 @@ func (layer *Conv2DLayer) Back(inputs mat.Matrix, _ mat.Matrix, forwardGradients
 
 func (layer *Conv2DLayer) NumOutputs() int {
 	return layer.NumKernels * layer.outputShape.Rows * layer.outputShape.Cols
+}
+
+func (layer *Conv2DLayer) ToBytes() []byte {
+	saveBytes := save.ConstantsToBytes(layer.InputShape.Rows, layer.InputShape.Cols, layer.KernelShape.Rows, layer.KernelShape.Cols, layer.NumKernels)
+	for _, kernel := range layer.kernels {
+		kernelSlice := utils.GetSlice(kernel)
+		saveBytes = append(saveBytes, save.ToBytes(kernelSlice)...)
+	}
+	return saveBytes
+}
+
+func (layer *Conv2DLayer) FromBytes(bytes []byte) {
+	constInts, kernelSlice := save.ConstantsFromBytes(bytes[:20]), save.FromBytes(bytes[20:])
+
+	layer.InputShape = Shape{Rows: constInts[0], Cols: constInts[1]}
+	layer.KernelShape = Shape{Rows: constInts[2], Cols: constInts[3]}
+	layer.NumKernels = constInts[4]
+
+	layer.kernels = make([]mat.Matrix, layer.NumKernels)
+	kernelSize := layer.KernelShape.Rows * layer.KernelShape.Cols
+	for i := range layer.kernels {
+		layer.kernels[i] = mat.NewDense(layer.KernelShape.Rows, layer.KernelShape.Cols, kernelSlice[i*kernelSize:(i+1)*kernelSize])
+	}
 }

@@ -25,3 +25,9 @@ func (layer *FlattenLayer) Back(_ mat.Matrix, _ mat.Matrix, forwardGradients mat
 func (layer *FlattenLayer) NumOutputs() int {
 	return layer.n_inputs
 }
+
+func (layer *FlattenLayer) ToBytes() []byte {
+	return make([]byte, 0)
+}
+
+func (layer *FlattenLayer) FromBytes(bytes []byte) {}

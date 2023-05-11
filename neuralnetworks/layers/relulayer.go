@@ -32,8 +32,12 @@ func (layer *ReluLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradi
 	return &NilShift{}, forwardGradients
 }
 
-func (layer *ReluLayer) ApplyShift(shift mat.Matrix, scale float64) {}
-
 func (layer *ReluLayer) NumOutputs() int {
 	return layer.n_inputs
 }
+
+func (layer *ReluLayer) ToBytes() []byte {
+	return make([]byte, 0)
+}
+
+func (layer *ReluLayer) FromBytes(bytes []byte) {}

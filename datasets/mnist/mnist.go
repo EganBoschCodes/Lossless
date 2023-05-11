@@ -29,7 +29,7 @@ func GetMNISTTest() []datasets.DataPoint {
 }
 
 func toASCII(values []float64) string {
-	colors := []string{" ", "░", "▒", "▓", "█"}
+	colors := []string{"  ", "░░", "▒▒", "▓▓", "██"}
 	stringVal := ""
 
 	for i, val := range values {
@@ -46,5 +46,5 @@ func toASCII(values []float64) string {
 func PrintLetter(letter datasets.DataPoint) {
 	fmt.Println("Printing Digit:", datasets.FromOneHot(letter.Output))
 	fmt.Println(toASCII(letter.Input))
-	fmt.Println("Output:", letter.Output)
+	fmt.Printf("Output: %.2f\n", letter.Output)
 }

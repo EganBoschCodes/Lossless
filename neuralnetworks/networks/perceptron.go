@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go-ml-library/datasets"
 	"go-ml-library/neuralnetworks/layers"
+	"go-ml-library/neuralnetworks/save"
 	"go-ml-library/utils"
 	"math/rand"
 	"time"
@@ -12,12 +13,16 @@ import (
 )
 
 type Perceptron struct {
-	Layers        []layers.Layer
-	BATCH_SIZE    int
-	LEARNING_RATE float64
+	Layers       []layers.Layer
+	BatchSize    int
+	LearningRate float64
+
+	numInputs int
 }
 
 func (network *Perceptron) Initialize(numInputs int, ls []layers.Layer) {
+	network.numInputs = numInputs
+
 	// Initialize all of the layers with the proper sizing.
 	network.Layers = ls
 	lastOutput := numInputs
@@ -26,8 +31,8 @@ func (network *Perceptron) Initialize(numInputs int, ls []layers.Layer) {
 		lastOutput = layer.NumOutputs()
 	}
 
-	network.BATCH_SIZE = 16
-	network.LEARNING_RATE = 1.0
+	network.BatchSize = 16
+	network.LearningRate = 1.0
 }
 
 /*
@@ -190,7 +195,7 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []dat
 		shiftChannel := make(chan []layers.ShiftType)
 
 		// Start the weight calculations with goroutines
-		for item := 0; item < network.BATCH_SIZE; item++ {
+		for item := 0; item < network.BatchSize; item++ {
 			datapoint := dataset[datapointIndex]
 
 			go network.learn(datapoint.Input, datapoint.Output, shiftChannel)
@@ -204,7 +209,7 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []dat
 		}
 
 		// Capture the calculated weight shifts as they finish and add to the shift
-		for item := 0; item < network.BATCH_SIZE; item++ {
+		for item := 0; item < network.BatchSize; item++ {
 			datapointShifts := <-shiftChannel
 			for i, layerShift := range datapointShifts {
 				shifts[i] = shifts[i].Combine(layerShift)
@@ -213,7 +218,7 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []dat
 
 		// Once all shifts have been added in, apply the averaged shifts to all layers
 		for i, shift := range shifts {
-			shift.Apply(network.Layers[i], network.LEARNING_RATE)
+			shift.Apply(network.Layers[i], network.LearningRate)
 		}
 
 		// Just let me know how much time is left
@@ -235,4 +240,57 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []dat
 	correctPercentage = float64(correctGuesses) / float64(len(testingData)) * 100
 	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n\n", correctGuesses, len(testingData), correctPercentage)
 	fmt.Println("Trained Epochs:", epochs, ", Trained Datapoints:", epochs*len(dataset)+datapointIndex)
+}
+
+/*
+	GetErrors(dataset []datasets.DataPoint) []datasets.DataPoint
+	---------------------------------------------------------------------
+	This is just for some sanity checking. This lets you see the datapoints
+	your network guesses wrong on, cause sometimes it gets things wrong it
+	shouldn't, and sometimes you cannot believe someone wrote a 4 like that
+	(I'm looking at you, random MNIST contributor).
+*/
+
+func (network *Perceptron) GetErrors(dataset []datasets.DataPoint) []datasets.DataPoint {
+	errors := make([]datasets.DataPoint, 0)
+	for _, datapoint := range dataset {
+		wasCorrect := utils.GetMaxIndex(network.Evaluate(datapoint.Input)) == datasets.FromOneHot(datapoint.Output)
+		if !wasCorrect {
+			errors = append(errors, datapoint)
+		}
+	}
+
+	return errors
+}
+
+func (network *Perceptron) ToBytes() []byte {
+	bytes := save.ConstantsToBytes(network.numInputs)
+	for _, layer := range network.Layers {
+		layerBytes := layer.ToBytes()
+		bytes = append(bytes, save.ConstantsToBytes(layers.LayerToIndex(layer), len(layerBytes))...)
+		bytes = append(bytes, layerBytes...)
+	}
+	return bytes
+}
+
+func (network *Perceptron) FromBytes(bytes []byte) {
+	network.numInputs = save.ConstantsFromBytes(bytes[:4])[0]
+	network.Layers = make([]layers.Layer, 0)
+
+	lastOutput := network.numInputs
+	i := 4
+	for i < len(bytes) {
+		layerData := save.ConstantsFromBytes(bytes[i : i+8])
+		layer := layers.IndexToLayer(layerData[0])
+		dataLength := layerData[1]
+		i += 8
+
+		layer.FromBytes(bytes[i : i+dataLength])
+		i += dataLength
+
+		layer.Initialize(lastOutput)
+		lastOutput = layer.NumOutputs()
+
+		network.Layers = append(network.Layers, layer)
+	}
 }

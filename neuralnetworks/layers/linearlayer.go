@@ -1,17 +1,24 @@
 package layers
 
 import (
+	"go-ml-library/neuralnetworks/save"
+	"go-ml-library/utils"
 	"math/rand"
 
 	"gonum.org/v1/gonum/mat"
 )
 
 type LinearLayer struct {
-	weights mat.Matrix
 	Outputs int
+
+	weights mat.Matrix
 }
 
 func (layer *LinearLayer) Initialize(numInputs int) {
+	if layer.weights != nil {
+		return
+	}
+
 	numOutputs := layer.Outputs
 	data := make([]float64, (numInputs+1)*numOutputs)
 	for i := range data {
@@ -53,11 +60,18 @@ func (layer *LinearLayer) Back(inputs mat.Matrix, _ mat.Matrix, forwardGradients
 	return &WeightShift{shift: shift}, newGradient
 }
 
-func (layer *LinearLayer) ApplyShift(shift mat.Matrix, scale float64) {
-	shift.(*mat.Dense).Scale(scale, shift)
-	layer.weights.(*mat.Dense).Add(layer.weights, shift)
-}
-
 func (layer *LinearLayer) NumOutputs() int {
 	return layer.Outputs
+}
+
+func (layer *LinearLayer) ToBytes() []byte {
+	saveBytes := save.ConstantsToBytes(layer.Outputs)
+	saveBytes = append(saveBytes, save.ToBytes(utils.GetSlice(layer.weights))...)
+	return saveBytes
+}
+
+func (layer *LinearLayer) FromBytes(bytes []byte) {
+	constInts, weightSlice := save.ConstantsFromBytes(bytes[:4]), save.FromBytes(bytes[4:])
+	layer.Outputs = constInts[0]
+	layer.weights = mat.NewDense(layer.Outputs, len(weightSlice)/layer.Outputs, weightSlice)
 }

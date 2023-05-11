@@ -37,3 +37,9 @@ func (layer *SigmoidLayer) GetShape() mat.Matrix { return nil }
 func (layer *SigmoidLayer) NumOutputs() int {
 	return layer.n_inputs
 }
+
+func (layer *SigmoidLayer) ToBytes() []byte {
+	return make([]byte, 0)
+}
+
+func (layer *SigmoidLayer) FromBytes(bytes []byte) {}

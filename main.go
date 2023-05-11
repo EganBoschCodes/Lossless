@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"go-ml-library/datasets/mnist"
 	"go-ml-library/neuralnetworks/layers"
 	"go-ml-library/neuralnetworks/networks"
@@ -34,11 +35,26 @@ func main() {
 			&layers.SoftmaxLayer{},
 		})
 
-	network.BATCH_SIZE = 32
-	network.LEARNING_RATE = 0.02
+	network.BatchSize = 32
+	network.LearningRate = 0.02
 
 	trainingData := mnist.GetMNISTTrain()
 	testData := mnist.GetMNISTTest()
 
-	network.Train(trainingData, testData, time.Second*900)
+	network.Train(trainingData, testData, time.Second*20)
+
+	errors := network.GetErrors(testData)
+	fmt.Println("OG Network Errors:", len(errors))
+
+	networkBytes := network.ToBytes()
+	newNetwork := networks.Perceptron{}
+	newNetwork.FromBytes(networkBytes)
+
+	copyerrors := newNetwork.GetErrors(testData)
+	fmt.Println("Copied Network Errors:", len(copyerrors))
+	/*for i := 0; i < 20; i++ {
+		mnist.PrintLetter(errors[i])
+		fmt.Printf("Guess:  %.2f\n\n\n", network.Evaluate(errors[i].Input))
+	}*/
+
 }
