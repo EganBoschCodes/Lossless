@@ -1,6 +1,7 @@
 package layers
 
 import (
+	"fmt"
 	"go-ml-library/utils"
 	"math"
 
@@ -48,3 +49,7 @@ func (layer *SoftmaxLayer) ToBytes() []byte {
 }
 
 func (layer *SoftmaxLayer) FromBytes(bytes []byte) {}
+
+func (layer *SoftmaxLayer) PrettyPrint() {
+	fmt.Println("Softmax Activation")
+}

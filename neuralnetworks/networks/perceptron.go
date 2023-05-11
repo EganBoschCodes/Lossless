@@ -303,3 +303,12 @@ func (network *Perceptron) Open(name string) {
 	rawBytes := save.ReadBytesFromFile(fmt.Sprintf("savednetworks/%s.ejb", name))
 	network.FromBytes(rawBytes)
 }
+
+func (network *Perceptron) PrettyPrint() {
+	for i, layer := range network.Layers {
+		layer.PrettyPrint()
+		if i < len(network.Layers)-1 {
+			fmt.Print("\n---------------------------------\n\n")
+		}
+	}
+}

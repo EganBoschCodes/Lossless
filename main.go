@@ -7,14 +7,14 @@ import (
 	"time"
 )
 
-func main() {
+func TrainPerceptron() {
 	network := networks.Perceptron{}
 	network.Initialize(784,
 		[]layers.Layer{
 			&layers.Conv2DLayer{
 				InputShape:  layers.Shape{Rows: 28, Cols: 28},
 				KernelShape: layers.Shape{Rows: 3, Cols: 3},
-				NumKernels:  6,
+				NumKernels:  2,
 				FirstLayer:  true,
 			},
 			&layers.MaxPoolLayer{
@@ -24,11 +24,17 @@ func main() {
 			&layers.Conv2DLayer{
 				InputShape:  layers.Shape{Rows: 13, Cols: 13},
 				KernelShape: layers.Shape{Rows: 3, Cols: 3},
-				NumKernels:  12,
+				NumKernels:  4,
 			},
-			&layers.FlattenLayer{},
 			&layers.TanhLayer{},
-			&layers.LinearLayer{Outputs: 128},
+			&layers.Conv2DLayer{
+				InputShape:  layers.Shape{Rows: 11, Cols: 11},
+				KernelShape: layers.Shape{Rows: 3, Cols: 3},
+				NumKernels:  4,
+			},
+			&layers.TanhLayer{},
+			&layers.FlattenLayer{},
+			&layers.LinearLayer{Outputs: 32},
 			&layers.TanhLayer{},
 			&layers.LinearLayer{Outputs: 10},
 			&layers.SoftmaxLayer{},
@@ -40,15 +46,30 @@ func main() {
 	trainingData := mnist.GetMNISTTrain()
 	testData := mnist.GetMNISTTest()
 
-	network.Train(trainingData, testData, time.Second*20)
+	network.Train(trainingData, testData, time.Second*60)
 
-	network.Save("MNIST_Classifier")
+	network.Save("MNIST_Tiny_2Max")
 
-	/*
-		errors := network.GetErrors(testData)
-		for i := 0; i < 20; i++ {
-			mnist.PrintLetter(errors[i])
-			fmt.Printf("Guess:  %.2f\n\n\n", network.Evaluate(errors[i].Input))
-		}*/
+	/*errors := network.GetErrors(testData)
+	for i := 0; i < 20; i++ {
+		mnist.PrintLetter(errors[i])
+		fmt.Printf("Guess:  %.2f\n\n\n", network.Evaluate(errors[i].Input))
+	}*/
+}
 
+func main() {
+
+	//TrainPerceptron()
+	network := networks.Perceptron{}
+	network.Open("MNIST_Tiny_2Max")
+
+	network.PrettyPrint()
+
+	/*testData := mnist.GetMNISTTest()
+
+	errors := network.GetErrors(testData)
+	for i := 0; i < 20; i++ {
+		mnist.PrintLetter(errors[i])
+		fmt.Printf("Guess:  %.2f\n\n\n", network.Evaluate(errors[i].Input))
+	}*/
 }

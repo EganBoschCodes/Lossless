@@ -1,6 +1,8 @@
 package layers
 
 import (
+	"fmt"
+	"go-ml-library/utils"
 	"math"
 
 	"gonum.org/v1/gonum/mat"
@@ -20,8 +22,10 @@ func (layer *TanhLayer) Pass(input mat.Matrix) mat.Matrix {
 }
 
 func (layer *TanhLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
-	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
-		val := outputs.At(i, j)
+	outputSlice := utils.GetSlice(outputs)
+	_, c := forwardGradients.Dims()
+	forwardGradients.(*mat.Dense).Apply(func(i int, j int, v float64) float64 {
+		val := outputSlice[i*c+j]
 		return v * (1 - val*val)
 	}, forwardGradients)
 	return &NilShift{}, forwardGradients
@@ -38,3 +42,7 @@ func (layer *TanhLayer) ToBytes() []byte {
 }
 
 func (layer *TanhLayer) FromBytes(bytes []byte) {}
+
+func (layer *TanhLayer) PrettyPrint() {
+	fmt.Println("Tanh Activation")
+}

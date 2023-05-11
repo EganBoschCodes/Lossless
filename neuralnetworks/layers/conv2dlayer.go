@@ -144,3 +144,11 @@ func (layer *Conv2DLayer) FromBytes(bytes []byte) {
 		layer.kernels[i] = mat.NewDense(layer.KernelShape.Rows, layer.KernelShape.Cols, kernelSlice[i*kernelSize:(i+1)*kernelSize])
 	}
 }
+
+func (layer *Conv2DLayer) PrettyPrint() {
+	fmt.Printf("Conv2D Layer\n%d kernels\n%dx%d input\n\n", layer.NumKernels, layer.InputShape.Rows, layer.InputShape.Cols)
+	for i, kernel := range layer.kernels {
+		fmt.Println("Kernel", i, "=")
+		fmt.Println(utils.JSify(kernel))
+	}
+}

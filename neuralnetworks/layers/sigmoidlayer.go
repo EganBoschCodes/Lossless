@@ -1,6 +1,8 @@
 package layers
 
 import (
+	"fmt"
+	"go-ml-library/utils"
 	"math"
 
 	"gonum.org/v1/gonum/mat"
@@ -24,8 +26,10 @@ func (layer *SigmoidLayer) Pass(input mat.Matrix) mat.Matrix {
 }
 
 func (layer *SigmoidLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+	outputSlice := utils.GetSlice(outputs)
+	_, c := forwardGradients.Dims()
 	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
-		val := outputs.At(i, j)
+		val := outputSlice[i*c+j]
 		return v * val * (1 - val)
 	}, forwardGradients)
 
@@ -43,3 +47,7 @@ func (layer *SigmoidLayer) ToBytes() []byte {
 }
 
 func (layer *SigmoidLayer) FromBytes(bytes []byte) {}
+
+func (layer *SigmoidLayer) PrettyPrint() {
+	fmt.Println("Sigmoid Activation")
+}

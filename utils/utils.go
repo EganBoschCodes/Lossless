@@ -9,7 +9,7 @@ import (
 
 func PrintMat(name string, m mat.Matrix) {
 	fmt.Println("mat ", name, " =")
-	fmt.Printf("%.2f\n", mat.Formatted(m, mat.Prefix(""), mat.Squeeze()))
+	fmt.Printf("%.7f\n", mat.Formatted(m, mat.Prefix(""), mat.Squeeze()))
 }
 
 func Min(a int, b int) int {
@@ -76,4 +76,24 @@ func Reverse(vals []float64) []float64 {
 		rev[len(vals)-1-i] = val
 	}
 	return rev
+}
+
+func JSify(m mat.Matrix) string {
+	retString := "["
+	mr, mc := m.Dims()
+	for r := 0; r < mr; r++ {
+		retString += "["
+		for c := 0; c < mc; c++ {
+			retString += fmt.Sprintf("%.8f", m.At(r, c))
+			if c < mc-1 {
+				retString += ", "
+			}
+		}
+		retString += "]"
+		if r < mr-1 {
+			retString += ",\n"
+		}
+	}
+	retString += "]"
+	return retString
 }

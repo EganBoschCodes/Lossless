@@ -1,6 +1,7 @@
 package layers
 
 import (
+	"fmt"
 	"go-ml-library/neuralnetworks/save"
 	"go-ml-library/utils"
 	"math/rand"
@@ -11,10 +12,12 @@ import (
 type LinearLayer struct {
 	Outputs int
 
-	weights mat.Matrix
+	weights  mat.Matrix
+	n_inputs int
 }
 
 func (layer *LinearLayer) Initialize(numInputs int) {
+	layer.n_inputs = numInputs
 	if layer.weights != nil {
 		return
 	}
@@ -74,4 +77,9 @@ func (layer *LinearLayer) FromBytes(bytes []byte) {
 	constInts, weightSlice := save.ConstantsFromBytes(bytes[:4]), save.FromBytes(bytes[4:])
 	layer.Outputs = constInts[0]
 	layer.weights = mat.NewDense(layer.Outputs, len(weightSlice)/layer.Outputs, weightSlice)
+}
+
+func (layer *LinearLayer) PrettyPrint() {
+	fmt.Printf("Linear Layer\n%d Inputs -> %d Outputs\n\n", layer.n_inputs, layer.Outputs)
+	fmt.Println("weights =\n", utils.JSify(layer.weights))
 }

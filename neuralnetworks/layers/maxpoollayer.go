@@ -1,6 +1,7 @@
 package layers
 
 import (
+	"fmt"
 	"go-ml-library/neuralnetworks/save"
 	"go-ml-library/utils"
 
@@ -14,6 +15,11 @@ type MaxPoolLayer struct {
 }
 
 func (layer *MaxPoolLayer) Initialize(n_inputs int) {
+	if n_inputs%(layer.PoolShape.Rows*layer.PoolShape.Cols) != 0 {
+		fmt.Printf("%d outputs from the last layer can't be pooled by an %dx%d pool!\n", n_inputs, layer.PoolShape.Rows, layer.PoolShape.Cols)
+		panic(1)
+	}
+
 	layer.n_inputs = n_inputs
 }
 
@@ -44,4 +50,8 @@ func (layer *MaxPoolLayer) ToBytes() []byte {
 func (layer *MaxPoolLayer) FromBytes(bytes []byte) {
 	constInts := save.ConstantsFromBytes(bytes)
 	layer.PoolShape = Shape{Rows: constInts[0], Cols: constInts[1]}
+}
+
+func (layer *MaxPoolLayer) PrettyPrint() {
+	fmt.Printf("MaxPool (%dx%d)\n", layer.PoolShape.Rows, layer.PoolShape.Cols)
 }

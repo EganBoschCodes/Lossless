@@ -1,6 +1,7 @@
 package layers
 
 import (
+	"fmt"
 	"go-ml-library/utils"
 
 	"gonum.org/v1/gonum/mat"
@@ -31,3 +32,7 @@ func (layer *FlattenLayer) ToBytes() []byte {
 }
 
 func (layer *FlattenLayer) FromBytes(bytes []byte) {}
+
+func (layer *FlattenLayer) PrettyPrint() {
+	fmt.Printf("Flatten -> %dx1\n", layer.n_inputs)
+}

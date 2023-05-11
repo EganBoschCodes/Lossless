@@ -1,6 +1,7 @@
 package layers
 
 import (
+	"fmt"
 	"go-ml-library/utils"
 	"math"
 
@@ -41,3 +42,7 @@ func (layer *ReluLayer) ToBytes() []byte {
 }
 
 func (layer *ReluLayer) FromBytes(bytes []byte) {}
+
+func (layer *ReluLayer) PrettyPrint() {
+	fmt.Println("Relu Activation")
+}
