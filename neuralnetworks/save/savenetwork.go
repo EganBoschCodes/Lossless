@@ -1,8 +1,11 @@
 package save
 
 import (
+	"bufio"
 	"encoding/binary"
+	"io"
 	"math"
+	"os"
 )
 
 func ToBytes(slice []float64) []byte {
@@ -36,4 +39,34 @@ func ConstantsFromBytes(bytes []byte) []int {
 		ints[i] = int(binary.LittleEndian.Uint32(bytes[i*4 : (i+1)*4]))
 	}
 	return ints
+}
+
+func WriteBytesToFile(path string, bytes []byte) {
+	f, _ := os.Create(path)
+	defer f.Close()
+
+	f.Write(bytes)
+}
+
+func ReadBytesFromFile(path string) []byte {
+	file, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	// Get the file size
+	stat, err := file.Stat()
+	if err != nil {
+		panic(err)
+	}
+
+	// Read the file into a byte slice
+	bytes := make([]byte, stat.Size())
+	_, err = bufio.NewReader(file).Read(bytes)
+	if err != nil && err != io.EOF {
+		panic(err)
+	}
+
+	return bytes
 }

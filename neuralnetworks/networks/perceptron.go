@@ -294,3 +294,12 @@ func (network *Perceptron) FromBytes(bytes []byte) {
 		network.Layers = append(network.Layers, layer)
 	}
 }
+
+func (network *Perceptron) Save(name string) {
+	save.WriteBytesToFile(fmt.Sprintf("savednetworks/%s.ejb", name), network.ToBytes())
+}
+
+func (network *Perceptron) Open(name string) {
+	rawBytes := save.ReadBytesFromFile(fmt.Sprintf("savednetworks/%s.ejb", name))
+	network.FromBytes(rawBytes)
+}

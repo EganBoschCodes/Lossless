@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"go-ml-library/datasets/mnist"
 	"go-ml-library/neuralnetworks/layers"
 	"go-ml-library/neuralnetworks/networks"
@@ -43,18 +42,13 @@ func main() {
 
 	network.Train(trainingData, testData, time.Second*20)
 
-	errors := network.GetErrors(testData)
-	fmt.Println("OG Network Errors:", len(errors))
+	network.Save("MNIST_Classifier")
 
-	networkBytes := network.ToBytes()
-	newNetwork := networks.Perceptron{}
-	newNetwork.FromBytes(networkBytes)
-
-	copyerrors := newNetwork.GetErrors(testData)
-	fmt.Println("Copied Network Errors:", len(copyerrors))
-	/*for i := 0; i < 20; i++ {
-		mnist.PrintLetter(errors[i])
-		fmt.Printf("Guess:  %.2f\n\n\n", network.Evaluate(errors[i].Input))
-	}*/
+	/*
+		errors := network.GetErrors(testData)
+		for i := 0; i < 20; i++ {
+			mnist.PrintLetter(errors[i])
+			fmt.Printf("Guess:  %.2f\n\n\n", network.Evaluate(errors[i].Input))
+		}*/
 
 }
