@@ -1,9 +1,9 @@
 package main
 
 import (
-	"go-ml-library/datasets/mnist"
-	"go-ml-library/neuralnetworks/layers"
-	"go-ml-library/neuralnetworks/networks"
+	"lossless/datasets/mnist"
+	"lossless/neuralnetworks/layers"
+	"lossless/neuralnetworks/networks"
 	"time"
 )
 

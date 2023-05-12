@@ -2,7 +2,7 @@ package datasets
 
 import (
 	"fmt"
-	"go-ml-library/utils"
+	"lossless/utils"
 )
 
 func IsCorrect(output []float64, target []float64) {

@@ -2,7 +2,7 @@ package layers
 
 import (
 	"fmt"
-	"go-ml-library/utils"
+	"lossless/utils"
 
 	"gonum.org/v1/gonum/mat"
 )

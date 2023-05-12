@@ -2,8 +2,8 @@ package layers
 
 import (
 	"fmt"
-	"go-ml-library/neuralnetworks/save"
-	"go-ml-library/utils"
+	"lossless/neuralnetworks/save"
+	"lossless/utils"
 
 	"gonum.org/v1/gonum/mat"
 )

@@ -1,7 +1,7 @@
 package datasets
 
 import (
-	"go-ml-library/utils"
+	"lossless/utils"
 	"math"
 	"math/rand"
 )

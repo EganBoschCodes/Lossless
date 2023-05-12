@@ -2,10 +2,10 @@ package networks
 
 import (
 	"fmt"
-	"go-ml-library/datasets"
-	"go-ml-library/neuralnetworks/layers"
-	"go-ml-library/neuralnetworks/save"
-	"go-ml-library/utils"
+	"lossless/datasets"
+	"lossless/neuralnetworks/layers"
+	"lossless/neuralnetworks/save"
+	"lossless/utils"
 	"math/rand"
 	"time"
 
@@ -31,8 +31,8 @@ func (network *Perceptron) Initialize(numInputs int, ls []layers.Layer) {
 		lastOutput = layer.NumOutputs()
 	}
 
-	network.BatchSize = 16
-	network.LearningRate = 1.0
+	network.BatchSize = 8
+	network.LearningRate = 0.05
 }
 
 /*

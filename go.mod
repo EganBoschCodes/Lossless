@@ -1,4 +1,4 @@
-module go-ml-library
+module lossless
 
 go 1.20
 

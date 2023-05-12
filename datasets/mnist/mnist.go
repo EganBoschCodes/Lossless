@@ -2,8 +2,8 @@ package mnist
 
 import (
 	"fmt"
-	"go-ml-library/datasets"
-	"go-ml-library/utils"
+	"lossless/datasets"
+	"lossless/utils"
 )
 
 func mnistify(rawMNIST [][]float64) []datasets.DataPoint {
