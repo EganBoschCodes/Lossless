@@ -29,6 +29,21 @@ type Conv2DLayer struct {
 }
 
 func (layer *Conv2DLayer) Initialize(numInputs int) {
+	if layer.InputShape.Rows == 0 || layer.InputShape.Cols == 0 {
+		fmt.Println("You must specify the InputShape for a Conv2DLayer!")
+		panic(1)
+	}
+
+	if layer.KernelShape.Rows == 0 || layer.KernelShape.Cols == 0 {
+		fmt.Println("You must specify the KernelShape for a Conv2DLayer!")
+		panic(1)
+	}
+
+	if layer.NumKernels == 0 {
+		fmt.Println("You must specify the NumKernels for a Conv2DLayer!")
+		panic(1)
+	}
+
 	// Computing useful constants for consistent use
 	layer.inputMatrices = numInputs / (layer.InputShape.Rows * layer.InputShape.Cols)
 	layer.kernelsPerInput = layer.NumKernels / layer.inputMatrices
@@ -145,10 +160,11 @@ func (layer *Conv2DLayer) FromBytes(bytes []byte) {
 	}
 }
 
-func (layer *Conv2DLayer) PrettyPrint() {
-	fmt.Printf("Conv2D Layer\n%d kernels\n%dx%d input\n\n", layer.NumKernels, layer.InputShape.Rows, layer.InputShape.Cols)
+func (layer *Conv2DLayer) PrettyPrint() string {
+	ret := fmt.Sprintf("Conv2D Layer\n%d kernels\n%dx%d input\n\n", layer.NumKernels, layer.InputShape.Rows, layer.InputShape.Cols)
 	for i, kernel := range layer.kernels {
-		fmt.Println("Kernel", i, "=")
-		fmt.Println(utils.JSify(kernel))
+		ret += fmt.Sprintln("Kernel", i, "=")
+		ret += fmt.Sprintln(utils.JSify(kernel))
 	}
+	return ret
 }

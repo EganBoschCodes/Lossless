@@ -22,6 +22,11 @@ func (layer *LinearLayer) Initialize(numInputs int) {
 		return
 	}
 
+	if layer.Outputs == 0 {
+		fmt.Println("You must specify how many Outputs a LinearLayer has!")
+		panic(1)
+	}
+
 	numOutputs := layer.Outputs
 	data := make([]float64, (numInputs+1)*numOutputs)
 	for i := range data {
@@ -79,7 +84,7 @@ func (layer *LinearLayer) FromBytes(bytes []byte) {
 	layer.weights = mat.NewDense(layer.Outputs, len(weightSlice)/layer.Outputs, weightSlice)
 }
 
-func (layer *LinearLayer) PrettyPrint() {
-	fmt.Printf("Linear Layer\n%d Inputs -> %d Outputs\n\n", layer.n_inputs, layer.Outputs)
-	fmt.Println("weights =\n", utils.JSify(layer.weights))
+func (layer *LinearLayer) PrettyPrint() string {
+	ret := fmt.Sprintf("Linear Layer\n%d Inputs -> %d Outputs\n\n", layer.n_inputs, layer.Outputs)
+	return ret + fmt.Sprintf("weights =\n%s", utils.JSify(layer.weights))
 }

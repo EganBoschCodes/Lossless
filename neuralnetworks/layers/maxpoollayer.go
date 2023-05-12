@@ -15,6 +15,11 @@ type MaxPoolLayer struct {
 }
 
 func (layer *MaxPoolLayer) Initialize(n_inputs int) {
+	if layer.PoolShape.Rows == 0 || layer.PoolShape.Cols == 0 {
+		fmt.Println("You must specify the PoolShape for a MaxPoolLayer!")
+		panic(1)
+	}
+
 	if n_inputs%(layer.PoolShape.Rows*layer.PoolShape.Cols) != 0 {
 		fmt.Printf("%d outputs from the last layer can't be pooled by an %dx%d pool!\n", n_inputs, layer.PoolShape.Rows, layer.PoolShape.Cols)
 		panic(1)
@@ -52,6 +57,6 @@ func (layer *MaxPoolLayer) FromBytes(bytes []byte) {
 	layer.PoolShape = Shape{Rows: constInts[0], Cols: constInts[1]}
 }
 
-func (layer *MaxPoolLayer) PrettyPrint() {
-	fmt.Printf("MaxPool (%dx%d)\n", layer.PoolShape.Rows, layer.PoolShape.Cols)
+func (layer *MaxPoolLayer) PrettyPrint() string {
+	return fmt.Sprintf("MaxPool (%dx%d)\n", layer.PoolShape.Rows, layer.PoolShape.Cols)
 }

@@ -236,10 +236,10 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []dat
 
 	// Log how we did
 	loss, correctGuesses = network.getTotalLoss(testingData)
-	fmt.Printf("\nFinal Loss: %.3f\n", loss)
+	fmt.Printf("\n\nFinal Loss: %.3f\n", loss)
 	correctPercentage = float64(correctGuesses) / float64(len(testingData)) * 100
 	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n\n", correctGuesses, len(testingData), correctPercentage)
-	fmt.Println("Trained Epochs:", epochs, ", Trained Datapoints:", epochs*len(dataset)+datapointIndex)
+	fmt.Printf("Trained Epochs: %d, Trained Datapoints: %d", epochs, epochs*len(dataset)+datapointIndex)
 }
 
 /*
@@ -262,6 +262,15 @@ func (network *Perceptron) GetErrors(dataset []datasets.DataPoint) []datasets.Da
 
 	return errors
 }
+
+/*
+	ToBytes() []byte, FromBytes(bytes []byte)
+	---------------------------------------------------------------------
+	Both of these functions are utility for the ability to permanently
+	save your networks. ToBytes takes all the data necessary to recreate
+	the network and turns it into a raw byte array, FromBytes takes a raw
+	byte array and reinitializes the network.
+*/
 
 func (network *Perceptron) ToBytes() []byte {
 	bytes := save.ConstantsToBytes(network.numInputs)
@@ -295,8 +304,20 @@ func (network *Perceptron) FromBytes(bytes []byte) {
 	}
 }
 
+/*
+	Save(dir string, name string), Open(dir string, name string)
+	---------------------------------------------------------------------
+	These functions either save the network to a file or open a network
+	file, with file path [CWD]/[dir]/[string].lsls. If dir is not specified,
+	file is saved to or opened from the current working directory.
+*/
+
 func (network *Perceptron) Save(dir string, name string) {
-	save.WriteBytesToFile(fmt.Sprintf("%s/%s.lsls", dir, name), network.ToBytes())
+	if len(dir) > 0 {
+		save.WriteBytesToFile(fmt.Sprintf("%s/%s.lsls", dir, name), network.ToBytes())
+	} else {
+		save.WriteBytesToFile(fmt.Sprintf("%s.lsls", name), network.ToBytes())
+	}
 }
 
 func (network *Perceptron) Open(dir string, name string) {
@@ -304,11 +325,28 @@ func (network *Perceptron) Open(dir string, name string) {
 	network.FromBytes(rawBytes)
 }
 
-func (network *Perceptron) PrettyPrint() {
+/*
+	PrettyPrint(dir string, name string)
+	---------------------------------------------------------------------
+	Sometimes you want to take your network and move it to another language,
+	raw embed it in the code. To that, I say gross. But I get it. Cause I
+	did it. Anyways, this will write all the relevant info to recreate the
+	network in a human "readable" form (as if a matrix with dimensions in the
+	hundreds can ever be human readable).
+*/
+
+func (network *Perceptron) PrettyPrint(dir string, name string) {
+	outputString := ""
 	for i, layer := range network.Layers {
-		layer.PrettyPrint()
+		outputString += layer.PrettyPrint()
 		if i < len(network.Layers)-1 {
-			fmt.Print("\n---------------------------------\n\n")
+			outputString += "\n---------------------------------\n\n"
 		}
 	}
+	if len(dir) > 0 {
+		save.WriteStringToFile(fmt.Sprintf("%s/%s.txt", dir, name), outputString)
+	} else {
+		save.WriteStringToFile(fmt.Sprintf("%s.txt", name), outputString)
+	}
+
 }

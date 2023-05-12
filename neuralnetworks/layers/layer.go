@@ -20,7 +20,7 @@ type Layer interface {
 
 	ToBytes() []byte
 	FromBytes([]byte)
-	PrettyPrint()
+	PrettyPrint() string
 }
 
 type ShiftType interface {

@@ -48,6 +48,13 @@ func WriteBytesToFile(path string, bytes []byte) {
 	f.Write(bytes)
 }
 
+func WriteStringToFile(path string, str string) {
+	f, _ := os.Create(path)
+	defer f.Close()
+
+	f.WriteString(str)
+}
+
 func ReadBytesFromFile(path string) []byte {
 	file, err := os.Open(path)
 	if err != nil {

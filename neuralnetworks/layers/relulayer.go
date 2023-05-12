@@ -43,6 +43,6 @@ func (layer *ReluLayer) ToBytes() []byte {
 
 func (layer *ReluLayer) FromBytes(bytes []byte) {}
 
-func (layer *ReluLayer) PrettyPrint() {
-	fmt.Println("Relu Activation")
+func (layer *ReluLayer) PrettyPrint() string {
+	return fmt.Sprintln("Relu Activation")
 }

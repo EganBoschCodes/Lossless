@@ -48,6 +48,6 @@ func (layer *SigmoidLayer) ToBytes() []byte {
 
 func (layer *SigmoidLayer) FromBytes(bytes []byte) {}
 
-func (layer *SigmoidLayer) PrettyPrint() {
-	fmt.Println("Sigmoid Activation")
+func (layer *SigmoidLayer) PrettyPrint() string {
+	return fmt.Sprintln("Sigmoid Activation")
 }

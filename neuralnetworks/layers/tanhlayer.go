@@ -43,6 +43,6 @@ func (layer *TanhLayer) ToBytes() []byte {
 
 func (layer *TanhLayer) FromBytes(bytes []byte) {}
 
-func (layer *TanhLayer) PrettyPrint() {
-	fmt.Println("Tanh Activation")
+func (layer *TanhLayer) PrettyPrint() string {
+	return fmt.Sprintln("Tanh Activation")
 }

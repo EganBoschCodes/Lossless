@@ -33,6 +33,6 @@ func (layer *FlattenLayer) ToBytes() []byte {
 
 func (layer *FlattenLayer) FromBytes(bytes []byte) {}
 
-func (layer *FlattenLayer) PrettyPrint() {
-	fmt.Printf("Flatten -> %dx1\n", layer.n_inputs)
+func (layer *FlattenLayer) PrettyPrint() string {
+	return fmt.Sprintf("Flatten -> %dx1\n", layer.n_inputs)
 }
