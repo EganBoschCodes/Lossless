@@ -20,7 +20,7 @@ type Perceptron struct {
 	numInputs int
 }
 
-func (network *Perceptron) Initialize(numInputs int, ls []layers.Layer) {
+func (network *Perceptron) Initialize(numInputs int, ls ...layers.Layer) {
 	network.numInputs = numInputs
 
 	// Initialize all of the layers with the proper sizing.
@@ -295,12 +295,12 @@ func (network *Perceptron) FromBytes(bytes []byte) {
 	}
 }
 
-func (network *Perceptron) Save(name string) {
-	save.WriteBytesToFile(fmt.Sprintf("savednetworks/%s.ejb", name), network.ToBytes())
+func (network *Perceptron) Save(dir string, name string) {
+	save.WriteBytesToFile(fmt.Sprintf("%s/%s.lsls", dir, name), network.ToBytes())
 }
 
-func (network *Perceptron) Open(name string) {
-	rawBytes := save.ReadBytesFromFile(fmt.Sprintf("savednetworks/%s.ejb", name))
+func (network *Perceptron) Open(dir string, name string) {
+	rawBytes := save.ReadBytesFromFile(fmt.Sprintf("%s/%s.lsls", dir, name))
 	network.FromBytes(rawBytes)
 }
 
