@@ -6,10 +6,10 @@ Hi, my name is Egan Bosch, and I am currently a fourth-year computational mathem
 
 Not ideal. So, a few months later, feeling inspired and after a sufficiently long pondering session I essentially rederived how to do backpropagation for basic MLP's (which is not insane, I'm aware) but the simplicity of doing just a few matrix multiplications got me excited enough to create Lossless, which has now evolved somewhat. It is still young (as of the time I am writing this, I created it about a week ago), so expect updates in the future, and let me know if you wish to collaborate!
 ## Getting Started
-1. Download the repo to your local machine.
-2. Download the latest version of Go [here](https://go.dev/dl/).
-3. If you seek to use the MNIST dataset, download the CSV's from [here](https://www.kaggle.com/datasets/oddrationale/mnist-in-csv) and place into `datasets/mnist` in the repo.
-4. To run, just write `go run main.go` in your terminal and all should work!
+1. Download the latest version of Go [here](https://go.dev/dl/).
+2. Create your project directory, and run `go mod init [your project name]`
+3. Run `go get github.com/EganBoschCodes/lossless`
+4. Get to creating!
 ## Creating your First Network
 The way I handled building networks to a certain degree mimics PyTorch's technique. I say to a certain degree, as I have never used PyTorch. However, let's make a nice basic baby MLP.
 ```mermaid
