@@ -82,9 +82,12 @@ func (frame *DataFrame) PrintSummary() {
 	numEntities := utils.Min(10, len(frame.values))
 	displayEntries := frame.values[:numEntities]
 
+	numColumns := utils.Min(7, len(displayEntries[0]))
+	displayEntries = utils.Map(displayEntries, func(row []FrameEntry) []FrameEntry { return row[:numColumns] })
+
 	// Find out how wide we need to make each column
 	displayLengths := utils.Map2D(displayEntries, func(entry FrameEntry) int { return len(entry.DisplayValue()) })
-	columnWidths := utils.Map(frame.headers, func(s string) int { return len(s) })
+	columnWidths := utils.Map(frame.headers[:numColumns], func(s string) int { return len(s) })
 	for _, row := range displayLengths {
 		columnWidths = utils.DoubleMap(columnWidths, row, utils.Max)
 	}
@@ -92,10 +95,12 @@ func (frame *DataFrame) PrintSummary() {
 	totalWidth := utils.Reduce(columnWidths, func(a int, b int) int { return a + b })
 
 	// Print headers
-	for i, header := range frame.headers {
+	for i, header := range frame.headers[:numColumns] {
 		fmt.Print(utils.CenterPad(header, columnWidths[i]))
-		if i < len(frame.headers)-1 {
+		if i < numColumns-1 {
 			fmt.Print("|")
+		} else if numColumns < len(frame.values[0]) {
+			fmt.Printf(" (%d more columns...)\n", len(frame.values[0])-numColumns)
 		} else {
 			fmt.Print("\n")
 		}
@@ -114,6 +119,10 @@ func (frame *DataFrame) PrintSummary() {
 				fmt.Print("\n")
 			}
 		}
+	}
+
+	if numEntities < len(frame.values) {
+		fmt.Printf("\n(%d more rows...)\n", len(frame.values)-numEntities)
 	}
 
 }
