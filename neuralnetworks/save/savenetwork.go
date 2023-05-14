@@ -68,7 +68,8 @@ func WriteBytesToFile(path string, bytes []byte) {
 
 	_, err := f.Write(bytes)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("\n\nError saving your network to a file!")
+		panic(err)
 	}
 }
 
@@ -81,7 +82,11 @@ func WriteStringToFile(path string, str string) {
 	f, _ := os.Create(path)
 	defer f.Close()
 
-	f.WriteString(str)
+	_, err := f.WriteString(str)
+	if err != nil {
+		fmt.Println("\n\nError saving your network to a file!")
+		panic(err)
+	}
 }
 
 func ReadBytesFromFile(path string) []byte {
