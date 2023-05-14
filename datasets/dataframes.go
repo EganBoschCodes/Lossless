@@ -40,7 +40,8 @@ func ReadCSV(path string, options ReadOptions) DataFrame {
 		}
 	}
 
-	rawEntries := utils.Map(rawRows, func(s string))
+	rawEntries := utils.Map(rawRows, func(s string) []string { return strings.Split(s, ",") })
+	frame.values = utils.Map2D(rawEntries, CreateEntry)
 
 	return frame
 }
@@ -75,4 +76,44 @@ func (frame *DataFrame) GetCol(title string) []FrameEntry {
 		}
 	}
 	panic("There is no column titled \"%s\" in this dataframe!\n\n")
+}
+
+func (frame *DataFrame) PrintSummary() {
+	numEntities := utils.Min(10, len(frame.values))
+	displayEntries := frame.values[:numEntities]
+
+	// Find out how wide we need to make each column
+	displayLengths := utils.Map2D(displayEntries, func(entry FrameEntry) int { return len(entry.DisplayValue()) })
+	columnWidths := utils.Map(frame.headers, func(s string) int { return len(s) })
+	for _, row := range displayLengths {
+		columnWidths = utils.DoubleMap(columnWidths, row, utils.Max)
+	}
+	columnWidths = utils.Map(columnWidths, func(a int) int { return a + 2 })
+	totalWidth := utils.Reduce(columnWidths, func(a int, b int) int { return a + b })
+
+	// Print headers
+	for i, header := range frame.headers {
+		fmt.Print(utils.CenterPad(header, columnWidths[i]))
+		if i < len(frame.headers)-1 {
+			fmt.Print("|")
+		} else {
+			fmt.Print("\n")
+		}
+	}
+
+	// Print a horizontal bar
+	fmt.Println(string(utils.Map(make([]byte, totalWidth+len(columnWidths)-1), func(a byte) byte { return 45 })))
+
+	// Print all the entries
+	for _, row := range displayEntries {
+		for i, entry := range row {
+			fmt.Print(utils.CenterPad(entry.DisplayValue(), columnWidths[i]))
+			if i < len(row)-1 {
+				fmt.Print("|")
+			} else {
+				fmt.Print("\n")
+			}
+		}
+	}
+
 }
