@@ -26,7 +26,12 @@ func ReadCSV(path string, options ReadOptions) DataFrame {
 		panic(err)
 	}
 
+	if len(bytes) == 0 {
+		panic(fmt.Sprintf("The file at \"%s\" is empty!"))
+	}
+
 	rawRows := strings.Split(string(bytes), "\r\n")
+	rawRows = utils.Filter(rawRows, func(s string) bool { return len(s) > 0 })
 
 	if options.Headers {
 		var headerRow string
@@ -38,6 +43,10 @@ func ReadCSV(path string, options ReadOptions) DataFrame {
 		for i := range frame.headers {
 			frame.headers[i] = fmt.Sprintf("Column %d", i)
 		}
+	}
+
+	if !utils.All(rawRows, func(s string) bool { return len(strings.Split(s, ",")) == len(frame.headers) }) {
+		panic("Not all values are populated!")
 	}
 
 	rawEntries := utils.Map(rawRows, func(s string) []string { return strings.Split(s, ",") })
@@ -76,6 +85,23 @@ func (frame *DataFrame) GetCol(title string) []FrameEntry {
 		}
 	}
 	panic("There is no column titled \"%s\" in this dataframe!\n\n")
+}
+
+func (frame *DataFrame) OverwriteNthColumn(newColumn []FrameEntry, col int) {
+	for i, row := range frame.values {
+		row[col] = newColumn[i]
+	}
+}
+
+func (frame *DataFrame) CategorizeNthColumn(col int) (options []FrameEntry) {
+	newColumn, options := Categorize(frame.GetNthCol(col))
+	frame.OverwriteNthColumn(newColumn, col)
+	return options
+}
+
+func (frame *DataFrame) NumericallyCategorizeNthColumn(col int) {
+	newColumn := NumericallyCategorize(frame.GetNthCol(col))
+	frame.OverwriteNthColumn(newColumn, col)
 }
 
 func (frame *DataFrame) PrintSummary() {
@@ -122,7 +148,7 @@ func (frame *DataFrame) PrintSummary() {
 	}
 
 	if numEntities < len(frame.values) {
-		fmt.Printf("\n(%d more rows...)\n", len(frame.values)-numEntities)
+		fmt.Printf("\n%s\n", utils.CenterPad(fmt.Sprintf("(%d more rows...)", len(frame.values)-numEntities), totalWidth))
 	}
 
 }

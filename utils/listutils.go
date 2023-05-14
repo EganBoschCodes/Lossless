@@ -51,3 +51,59 @@ func Flatten[T any](vals [][]T) []T {
 	}
 	return flat
 }
+
+func Filter[T any](vals []T, f func(T) bool) []T {
+	filteredVals := make([]T, 0)
+	for _, val := range vals {
+		if f(val) {
+			filteredVals = append(filteredVals, val)
+		}
+	}
+	return filteredVals
+}
+
+func All[T any](vals []T, f func(T) bool) bool {
+	for _, val := range vals {
+		if !f(val) {
+			return false
+		}
+	}
+	return true
+}
+
+func Any[T any](vals []T, f func(T) bool) bool {
+	for _, val := range vals {
+		if f(val) {
+			return true
+		}
+	}
+	return false
+}
+
+func Count[T any](vals []T, f func(T) bool) int {
+	num := 0
+	for _, val := range vals {
+		if f(val) {
+			num++
+		}
+	}
+	return num
+}
+
+func Find[T comparable](vals []T, val T) int {
+	for i, v := range vals {
+		if v == val {
+			return i
+		}
+	}
+	return -1
+}
+
+func FindWithCompare[T any](vals []T, val T, f func(T, T) bool) int {
+	for i, v := range vals {
+		if f(v, val) {
+			return i
+		}
+	}
+	return -1
+}

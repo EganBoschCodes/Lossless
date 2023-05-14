@@ -53,9 +53,9 @@ func SimpleSplit(data [][]float64, targetStart int) []DataPoint {
 	return datapoints
 }
 
-func ToOneHot(value float64, maxValue int) []float64 {
+func ToOneHot(value int, maxValue int) []float64 {
 	vec := make([]float64, maxValue)
-	vec[int(value)] = 1
+	vec[value] = 1
 	return vec
 }
 
