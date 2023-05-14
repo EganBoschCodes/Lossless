@@ -194,7 +194,8 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []dat
 	datapointIndex := 0
 	epochs := 0
 
-	for time.Since(start) < timespan {
+	trainingTime := time.Since(start)
+	for trainingTime < timespan {
 
 		// Prepare to capture the weight shifts from each datapoint in the batch
 		shifts := network.getEmptyShift()
@@ -228,7 +229,8 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []dat
 		}
 
 		// Just let me know how much time is left
-		steps := float64(time.Since(start)*1000/timespan) / 10
+		trainingTime = time.Since(start)
+		steps := float64(trainingTime*1000/timespan) / 10
 		progressBar := ""
 		for i := 0; i < 20; i++ {
 			if i < int(steps)/5 {
@@ -241,7 +243,7 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []dat
 	}
 
 	// Log how we did
-	fmt.Print("Final ")
+	fmt.Print("\nFinal ")
 	network.TestOnAndLog(testingData)
 	fmt.Printf("Trained Epochs: %d, Trained Datapoints: %d", epochs, epochs*len(dataset)+datapointIndex)
 }
