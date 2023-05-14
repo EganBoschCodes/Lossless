@@ -2,9 +2,10 @@ package layers
 
 import (
 	"fmt"
-	"lossless/neuralnetworks/save"
-	"lossless/utils"
 	"math/rand"
+
+	"github.com/EganBoschCodes/lossless/neuralnetworks/save"
+	"github.com/EganBoschCodes/lossless/utils"
 
 	"gonum.org/v1/gonum/mat"
 )

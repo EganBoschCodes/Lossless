@@ -1,4 +1,4 @@
-module lossless
+module github.com/EganBoschCodes/lossless
 
 go 1.20
 

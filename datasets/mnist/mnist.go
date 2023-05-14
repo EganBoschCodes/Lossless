@@ -2,8 +2,9 @@ package mnist
 
 import (
 	"fmt"
-	"lossless/datasets"
-	"lossless/utils"
+
+	"github.com/EganBoschCodes/lossless/datasets"
+	"github.com/EganBoschCodes/lossless/utils"
 )
 
 func mnistify(rawMNIST [][]float64) []datasets.DataPoint {

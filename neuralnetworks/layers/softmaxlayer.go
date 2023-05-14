@@ -2,8 +2,9 @@ package layers
 
 import (
 	"fmt"
-	"lossless/utils"
 	"math"
+
+	"github.com/EganBoschCodes/lossless/utils"
 
 	"gonum.org/v1/gonum/mat"
 )

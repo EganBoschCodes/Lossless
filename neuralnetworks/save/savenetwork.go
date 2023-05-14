@@ -3,6 +3,7 @@ package save
 import (
 	"bufio"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"math"
 	"os"
@@ -45,7 +46,10 @@ func WriteBytesToFile(path string, bytes []byte) {
 	f, _ := os.Create(path)
 	defer f.Close()
 
-	f.Write(bytes)
+	_, err := f.Write(bytes)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func WriteStringToFile(path string, str string) {

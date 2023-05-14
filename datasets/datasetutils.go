@@ -2,7 +2,8 @@ package datasets
 
 import (
 	"fmt"
-	"lossless/utils"
+
+	"github.com/EganBoschCodes/lossless/utils"
 )
 
 func IsCorrect(output []float64, target []float64) {

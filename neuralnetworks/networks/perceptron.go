@@ -2,12 +2,13 @@ package networks
 
 import (
 	"fmt"
-	"lossless/datasets"
-	"lossless/neuralnetworks/layers"
-	"lossless/neuralnetworks/save"
-	"lossless/utils"
 	"math/rand"
 	"time"
+
+	"github.com/EganBoschCodes/lossless/datasets"
+	"github.com/EganBoschCodes/lossless/neuralnetworks/layers"
+	"github.com/EganBoschCodes/lossless/neuralnetworks/save"
+	"github.com/EganBoschCodes/lossless/utils"
 
 	"gonum.org/v1/gonum/mat"
 )
@@ -153,6 +154,13 @@ func (network *Perceptron) getTotalLoss(dataset []datasets.DataPoint) (float64, 
 	return loss, correctGuesses
 }
 
+func (network *Perceptron) TestOnAndLog(dataset []datasets.DataPoint) {
+	loss, correctGuesses := network.getTotalLoss(dataset)
+	fmt.Printf("Loss: %.3f\n", loss)
+	correctPercentage := float64(correctGuesses) / float64(len(dataset)) * 100
+	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n\n", correctGuesses, len(dataset), correctPercentage)
+}
+
 /*
 	getEmptyShift() []mat.Matrix
 	---------------------------------------------------------------------
@@ -178,10 +186,8 @@ func (network *Perceptron) getEmptyShift() []layers.ShiftType {
 
 func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []datasets.DataPoint, timespan time.Duration) {
 	// Get a baseline
-	loss, correctGuesses := network.getTotalLoss(testingData)
-	fmt.Printf("Beginning Loss: %.3f\n", loss)
-	correctPercentage := float64(correctGuesses) / float64(len(testingData)) * 100
-	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n\n", correctGuesses, len(testingData), correctPercentage)
+	fmt.Print("Beginning ")
+	network.TestOnAndLog(testingData)
 
 	// Start the tracking data
 	start := time.Now()
@@ -235,10 +241,8 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []dat
 	}
 
 	// Log how we did
-	loss, correctGuesses = network.getTotalLoss(testingData)
-	fmt.Printf("\n\nFinal Loss: %.3f\n", loss)
-	correctPercentage = float64(correctGuesses) / float64(len(testingData)) * 100
-	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n\n", correctGuesses, len(testingData), correctPercentage)
+	fmt.Print("Final ")
+	network.TestOnAndLog(testingData)
 	fmt.Printf("Trained Epochs: %d, Trained Datapoints: %d", epochs, epochs*len(dataset)+datapointIndex)
 }
 

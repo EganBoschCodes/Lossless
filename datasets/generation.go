@@ -1,9 +1,10 @@
 package datasets
 
 import (
-	"lossless/utils"
 	"math"
 	"math/rand"
+
+	"github.com/EganBoschCodes/lossless/utils"
 )
 
 type DataPoint struct {

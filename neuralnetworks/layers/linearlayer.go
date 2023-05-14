@@ -2,9 +2,10 @@ package layers
 
 import (
 	"fmt"
-	"lossless/neuralnetworks/save"
-	"lossless/utils"
 	"math/rand"
+
+	"github.com/EganBoschCodes/lossless/neuralnetworks/save"
+	"github.com/EganBoschCodes/lossless/utils"
 
 	"gonum.org/v1/gonum/mat"
 )
@@ -27,12 +28,13 @@ func (layer *LinearLayer) Initialize(numInputs int) {
 		panic(1)
 	}
 
-	numOutputs := layer.Outputs
-	data := make([]float64, (numInputs+1)*numOutputs)
+	// Use Xavier Initialization on the weights
+	fan_avg := (float64(numInputs) + float64(layer.Outputs)) / 2
+	data := make([]float64, (numInputs+1)*layer.Outputs)
 	for i := range data {
-		data[i] = rand.NormFloat64() / 10
+		data[i] = rand.NormFloat64() / fan_avg
 	}
-	layer.weights = mat.NewDense(numOutputs, numInputs+1, data)
+	layer.weights = mat.NewDense(layer.Outputs, numInputs+1, data)
 }
 
 func (layer *LinearLayer) Pass(input mat.Matrix) mat.Matrix {

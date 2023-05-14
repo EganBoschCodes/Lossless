@@ -2,18 +2,25 @@ package layers
 
 import (
 	"fmt"
-	"lossless/utils"
 	"math"
+
+	"github.com/EganBoschCodes/lossless/utils"
 
 	"gonum.org/v1/gonum/mat"
 )
 
 type SigmoidLayer struct {
+	GradientScale float64
+
 	n_inputs int
 }
 
 func (layer *SigmoidLayer) Initialize(n_inputs int) {
 	layer.n_inputs = n_inputs
+
+	if layer.GradientScale == 0 {
+		layer.GradientScale = 1
+	}
 }
 
 func sigmoid(x float64) float64 {
@@ -30,7 +37,7 @@ func (layer *SigmoidLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGr
 	_, c := forwardGradients.Dims()
 	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
 		val := outputSlice[i*c+j]
-		return v * val * (1 - val)
+		return v * val * (1 - val) * layer.GradientScale
 	}, forwardGradients)
 
 	return &NilShift{}, forwardGradients
@@ -43,7 +50,7 @@ func (layer *SigmoidLayer) NumOutputs() int {
 }
 
 func (layer *SigmoidLayer) ToBytes() []byte {
-	return make([]byte, 0)
+	return []byte{}
 }
 
 func (layer *SigmoidLayer) FromBytes(bytes []byte) {}
