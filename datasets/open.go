@@ -11,11 +11,11 @@ func Open(address string) [][]float64 {
 	if err != nil {
 		panic(err)
 	}
+
 	entries := strings.Split(string(rawData), "\r\n")
 	data := make([][]float64, 0)
 
 	for i, entry := range entries {
-		// Skip the labels at the top of the screen
 		if i == 0 {
 			continue
 		}

@@ -1,67 +1,82 @@
 package datasets
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+)
 
 type FrameEntry interface {
-	Value() string
+	DisplayValue() string
 	Equals(FrameEntry) bool
 }
 
 type StringEntry struct {
-	Val string
+	Value string
 }
 
-func (str *StringEntry) Value() string {
-	return str.Val
+func (str *StringEntry) DisplayValue() string {
+	if len(str.Value) <= 12 {
+		return str.Value
+	}
+	return str.Value[:9] + "..."
 }
 
 func (str *StringEntry) Equals(other FrameEntry) bool {
 	switch other.(type) {
 	case *StringEntry:
-		return str.Val == other.(*StringEntry).Val
+		return str.Value == other.(*StringEntry).Value
 	default:
 		return false
 	}
 }
 
 type NumberEntry struct {
-	Val float64
+	Value float64
 }
 
-func (flt *NumberEntry) Value() string {
-	return fmt.Sprintf("%.3E", flt.Val)
+func (flt *NumberEntry) DisplayValue() string {
+	return fmt.Sprintf("%.3f", flt.Value)
 }
 
 func (flt *NumberEntry) Equals(other FrameEntry) bool {
 	switch other.(type) {
 	case *NumberEntry:
-		return flt.Val == other.(*NumberEntry).Val
+		return flt.Value == other.(*NumberEntry).Value
 	default:
 		return false
 	}
 }
 
 type VectorEntry struct {
-	Val []float64
+	Value []float64
 }
 
-func (vec *VectorEntry) Value() string {
-	return fmt.Sprintf("%.3E", vec.Val)
+func (vec *VectorEntry) DisplayValue() string {
+	return fmt.Sprintf("%.1f", vec.Value)
 }
 
 func (vec *VectorEntry) Equals(other FrameEntry) bool {
 	switch other.(type) {
 	case *VectorEntry:
-		if len(vec.Val) != len(other.(*VectorEntry).Val) {
+		if len(vec.Value) != len(other.(*VectorEntry).Value) {
 			return false
 		}
-		for i := range vec.Val {
-			if vec.Val[i] != other.(*VectorEntry).Val[i] {
+		for i := range vec.Value {
+			if vec.Value[i] != other.(*VectorEntry).Value[i] {
 				return false
 			}
 		}
 		return true
 	default:
 		return false
+	}
+}
+
+func CreateEntry(rawValue string) FrameEntry {
+	val, err := strconv.ParseFloat(rawValue, 64)
+	if err != nil {
+		return &StringEntry{Value: rawValue}
+	} else {
+		return &NumberEntry{Value: val}
 	}
 }

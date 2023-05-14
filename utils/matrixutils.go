@@ -198,7 +198,7 @@ func UnMaxPool(data mat.Matrix, width int, height int) mat.Matrix {
 	return ret
 }
 
-func DenseLike(m mat.Matrix) mat.Matrix {
-	r, c := m.Dims()
-	return mat.NewDense(r, c, nil)
+func PrintMat(name string, m mat.Matrix) {
+	fmt.Println("mat ", name, " =")
+	fmt.Printf("%.7f\n", mat.Formatted(m, mat.Prefix(""), mat.Squeeze()))
 }
