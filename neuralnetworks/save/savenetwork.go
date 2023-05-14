@@ -3,10 +3,12 @@ package save
 import (
 	"bufio"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
+	"strings"
 )
 
 func ToBytes(slice []float64) []byte {
@@ -42,7 +44,25 @@ func ConstantsFromBytes(bytes []byte) []int {
 	return ints
 }
 
+func recursivelyCreateFolders(path []string) {
+	cwd := path[0]
+	for i := range path {
+		if _, err := os.Stat(cwd); errors.Is(err, os.ErrNotExist) {
+			os.Mkdir(cwd, os.ModePerm)
+		}
+
+		if i < len(path)-1 {
+			cwd += "/" + path[i+1]
+		}
+	}
+}
+
 func WriteBytesToFile(path string, bytes []byte) {
+	pathSteps := strings.Split(path, "/")
+	if len(pathSteps) > 1 {
+		recursivelyCreateFolders(pathSteps[:len(pathSteps)-1])
+	}
+
 	f, _ := os.Create(path)
 	defer f.Close()
 
@@ -53,6 +73,11 @@ func WriteBytesToFile(path string, bytes []byte) {
 }
 
 func WriteStringToFile(path string, str string) {
+	pathSteps := strings.Split(path, "/")
+	if len(pathSteps) > 1 {
+		recursivelyCreateFolders(pathSteps[:len(pathSteps)-1])
+	}
+
 	f, _ := os.Create(path)
 	defer f.Close()
 

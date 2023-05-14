@@ -82,7 +82,7 @@ func IndexToLayer(index int) Layer {
 	case 5:
 		return &Conv2DLayer{}
 	case 6:
-		return &MaxPoolLayer{}
+		return &MaxPool2DLayer{}
 	case 7:
 		return &FlattenLayer{}
 	default:
@@ -104,7 +104,7 @@ func LayerToIndex(layer Layer) int {
 		return 4
 	case *Conv2DLayer:
 		return 5
-	case *MaxPoolLayer:
+	case *MaxPool2DLayer:
 		return 6
 	case *FlattenLayer:
 		return 7
