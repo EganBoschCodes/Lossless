@@ -2,4 +2,4 @@ module github.com/EganBoschCodes/lossless
 
 go 1.20
 
-require gonum.org/v1/gonum v0.12.0
+require gonum.org/v1/gonum v0.13.0 // indirect
