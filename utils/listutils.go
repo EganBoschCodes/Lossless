@@ -99,7 +99,7 @@ func Find[T comparable](vals []T, val T) int {
 	return -1
 }
 
-func FindWithCompare[T any](vals []T, val T, f func(T, T) bool) int {
+func FindWithCompare[T any, U any](vals []T, val U, f func(T, U) bool) int {
 	for i, v := range vals {
 		if f(v, val) {
 			return i

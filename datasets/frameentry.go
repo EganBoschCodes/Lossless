@@ -11,6 +11,8 @@ type FrameEntry interface {
 	FullValue() string
 	DisplayValue() string
 	Equals(FrameEntry) bool
+
+	MergeInto([]float64) []float64
 }
 
 type StringEntry struct {
@@ -37,6 +39,10 @@ func (str *StringEntry) Equals(other FrameEntry) bool {
 	}
 }
 
+func (str *StringEntry) MergeInto(_ []float64) []float64 {
+	panic("There are still strings in your dataframe!")
+}
+
 type NumberEntry struct {
 	Value float64
 }
@@ -56,6 +62,10 @@ func (flt *NumberEntry) Equals(other FrameEntry) bool {
 	default:
 		return false
 	}
+}
+
+func (flt *NumberEntry) MergeInto(vals []float64) []float64 {
+	return append(vals, flt.Value)
 }
 
 type VectorEntry struct {
@@ -85,6 +95,10 @@ func (vec *VectorEntry) Equals(other FrameEntry) bool {
 	default:
 		return false
 	}
+}
+
+func (vec *VectorEntry) MergeInto(vals []float64) []float64 {
+	return append(vals, vec.Value...)
 }
 
 func CreateEntry(rawValue string) FrameEntry {
