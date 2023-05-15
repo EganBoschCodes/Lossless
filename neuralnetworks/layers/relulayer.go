@@ -24,8 +24,10 @@ func (layer *ReluLayer) Pass(input mat.Matrix) mat.Matrix {
 }
 
 func (layer *ReluLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+	inputSlice := utils.GetSlice(inputs)
+	_, c := forwardGradients.Dims()
 	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
-		val := inputs.At(i, j)
+		val := inputSlice[i*c+j]
 		if val <= 0.0 {
 			return 0.1 * v
 		}
