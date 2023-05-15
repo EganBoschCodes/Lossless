@@ -155,8 +155,12 @@ func (network *Perceptron) getTotalLoss(dataset []datasets.DataPoint) (float64, 
 }
 
 func (network *Perceptron) TestOnAndLog(dataset []datasets.DataPoint) {
+	network.testOnAndLogWithPrefix(dataset, "")
+}
+
+func (network *Perceptron) testOnAndLogWithPrefix(dataset []datasets.DataPoint, prefix string) {
 	loss, correctGuesses := network.getTotalLoss(dataset)
-	fmt.Printf("Loss: %.3f\n", loss)
+	fmt.Printf("\n%sLoss: %.3f\n", prefix, loss)
 	correctPercentage := float64(correctGuesses) / float64(len(dataset)) * 100
 	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n\n", correctGuesses, len(dataset), correctPercentage)
 }
@@ -186,8 +190,7 @@ func (network *Perceptron) getEmptyShift() []layers.ShiftType {
 
 func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []datasets.DataPoint, timespan time.Duration) {
 	// Get a baseline
-	fmt.Print("Beginning ")
-	network.TestOnAndLog(testingData)
+	network.testOnAndLogWithPrefix(testingData, "Beginning ")
 
 	// Start the tracking data
 	start := time.Now()
@@ -243,8 +246,7 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []dat
 	}
 
 	// Log how we did
-	fmt.Print("\nFinal ")
-	network.TestOnAndLog(testingData)
+	network.testOnAndLogWithPrefix(testingData, "Final ")
 	fmt.Printf("Trained Epochs: %d, Trained Datapoints: %d", epochs, epochs*len(dataset)+datapointIndex)
 }
 
@@ -327,7 +329,12 @@ func (network *Perceptron) Save(dir string, name string) {
 }
 
 func (network *Perceptron) Open(dir string, name string) {
-	rawBytes := save.ReadBytesFromFile(fmt.Sprintf("%s/%s.lsls", dir, name))
+	var rawBytes []byte
+	if len(dir) > 0 {
+		rawBytes = save.ReadBytesFromFile(fmt.Sprintf("%s/%s.lsls", dir, name))
+	} else {
+		rawBytes = save.ReadBytesFromFile(fmt.Sprintf("%s.lsls", name))
+	}
 	network.FromBytes(rawBytes)
 }
 
