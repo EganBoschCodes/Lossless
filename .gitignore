@@ -1,4 +1,6 @@
 *.csv
 *.lsls
 *.txt
+*.dtst
+
 testing
