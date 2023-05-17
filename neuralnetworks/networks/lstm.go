@@ -3,7 +3,9 @@ package networks
 import (
 	"fmt"
 	"math"
+	"time"
 
+	"github.com/EganBoschCodes/lossless/datasets"
 	"github.com/EganBoschCodes/lossless/neuralnetworks/layers"
 	"github.com/EganBoschCodes/lossless/utils"
 	"gonum.org/v1/gonum/mat"
@@ -53,7 +55,7 @@ func (network *LSTM) Initialize(numInputs int, numOutputs int, ForgetGate []laye
 	default:
 		network.ForgetGate = append(network.ForgetGate, &layers.SigmoidLayer{})
 	}
-	network.initializeGate(network.ForgetGate, network.numInputs, network.numOutputs)
+	network.initializeGate(network.ForgetGate, network.concatInputs, network.numOutputs)
 
 	// Input Gate - A sigmoid NN that pointwise multiplies with the output of the candidate gate
 	switch utils.LastOf(network.InputGate).(type) {
@@ -61,7 +63,7 @@ func (network *LSTM) Initialize(numInputs int, numOutputs int, ForgetGate []laye
 	default:
 		network.InputGate = append(network.InputGate, &layers.SigmoidLayer{})
 	}
-	network.initializeGate(network.InputGate, network.numInputs, network.numOutputs)
+	network.initializeGate(network.InputGate, network.concatInputs, network.numOutputs)
 
 	// Candidate Gate - A tanh NN that pointwise multiplies with the input gate, before being added to cell state.
 	switch utils.LastOf(network.CandidateGate).(type) {
@@ -69,7 +71,7 @@ func (network *LSTM) Initialize(numInputs int, numOutputs int, ForgetGate []laye
 	default:
 		network.CandidateGate = append(network.CandidateGate, &layers.TanhLayer{})
 	}
-	network.initializeGate(network.CandidateGate, network.numInputs, network.numOutputs)
+	network.initializeGate(network.CandidateGate, network.concatInputs, network.numOutputs)
 
 	// Output Gate - A sigmoid NN that, after being pointwise multiplied with the pointwise tanh of the modified cell state, constitutes the output
 	switch utils.LastOf(network.OutputGate).(type) {
@@ -77,7 +79,7 @@ func (network *LSTM) Initialize(numInputs int, numOutputs int, ForgetGate []laye
 	default:
 		network.OutputGate = append(network.OutputGate, &layers.SigmoidLayer{})
 	}
-	network.initializeGate(network.OutputGate, network.numInputs, network.numOutputs)
+	network.initializeGate(network.OutputGate, network.concatInputs, network.numOutputs)
 
 	network.initializeGate(network.InterpretGate, network.numOutputs, -1)
 }
@@ -93,6 +95,42 @@ func (network *LSTM) Evaluate(inputSeries [][]float64) []float64 {
 	cellState, hiddenState := mat.NewDense(network.numOutputs, 1, nil), mat.NewDense(network.numOutputs, 1, nil)
 
 	for _, input := range inputSeries {
+		hiddenSlice := make([]float64, network.numOutputs)
+		copy(hiddenSlice, utils.GetSlice(hiddenState))
+		concatInput := append(hiddenSlice, input...)
+
+		concatInputMat := utils.FromSlice(concatInput)
+
+		// Forget Gate Passthrough
+		fmt.Println(concatInputMat.Dims())
+		forgetGateOutput := network.passThroughGate(concatInputMat, network.ForgetGate)
+		cellState.MulElem(cellState, forgetGateOutput)
+
+		// Input and Candidate Gate
+		inputGateOutput := network.passThroughGate(concatInputMat, network.InputGate)
+		candidateGateOutput := network.passThroughGate(concatInputMat, network.CandidateGate)
+		joinedOutput := mat.NewDense(network.numOutputs, 1, nil)
+		joinedOutput.MulElem(inputGateOutput, candidateGateOutput)
+
+		cellState.Add(cellState, joinedOutput)
+
+		// Output Gate
+		hiddenState = network.passThroughGate(concatInputMat, network.OutputGate)
+		hiddenState.Apply(func(i int, j int, v float64) float64 {
+			return v * math.Tanh(cellState.At(i, j))
+		}, hiddenState)
+	}
+
+	// Interpret Gate
+	return utils.GetSlice(network.passThroughGate(hiddenState, network.InterpretGate))
+}
+
+func (network *LSTM) EvaluateAcrossInterval(inputSeries [][]float64) [][]float64 {
+	cellState, hiddenState := mat.NewDense(network.numOutputs, 1, nil), mat.NewDense(network.numOutputs, 1, nil)
+
+	outputs := make([][]float64, len(inputSeries))
+
+	for i, input := range inputSeries {
 		hiddenSlice := make([]float64, network.numOutputs)
 		copy(hiddenSlice, utils.GetSlice(hiddenState))
 		concatInput := append(hiddenSlice, input...)
@@ -116,10 +154,12 @@ func (network *LSTM) Evaluate(inputSeries [][]float64) []float64 {
 		hiddenState.Apply(func(i int, j int, v float64) float64 {
 			return v * math.Tanh(cellState.At(i, j))
 		}, hiddenState)
+
+		// Interpret Gate
+		outputs[i] = utils.GetSlice(network.passThroughGate(hiddenState, network.InterpretGate))
 	}
 
-	// Interpret Gate
-	return utils.GetSlice(network.passThroughGate(hiddenState, network.InterpretGate))
+	return outputs
 }
 
 func (network *LSTM) passThroughGateWithCache(input mat.Matrix, gate []layers.Layer) (*mat.Dense, []mat.Matrix) {
@@ -137,7 +177,7 @@ func createNilShifts(length int) []layers.ShiftType {
 
 func getGateShifts(gate []layers.Layer, gateCache []mat.Matrix, forwardGradients mat.Matrix) (shifts []layers.ShiftType, startingGradients mat.Matrix) {
 	shifts = make([]layers.ShiftType, len(gate))
-	for i := len(gate); i >= 0; i++ {
+	for i := len(gate) - 1; i >= 0; i-- {
 		shifts[i], forwardGradients = gate[i].Back(gateCache[i], gateCache[i+1], forwardGradients)
 	}
 	return shifts, forwardGradients
@@ -159,8 +199,8 @@ func (network *LSTM) learn(inputSeries [][]float64, targets [][]float64, shiftCh
 		// Forget Gate Passthrough
 		forgetGateOutput, forgotCache := network.passThroughGateWithCache(concatInputMat, network.ForgetGate)
 		forgetGateInputCache = append(forgetGateInputCache, forgotCache)
-		var cellState *mat.Dense
-		cellState.MulElem(cellState, forgetGateOutput)
+		cellState := mat.NewDense(network.numOutputs, 1, nil)
+		cellState.MulElem(utils.LastOf(cellStates), forgetGateOutput)
 
 		// Input and Candidate Gate
 		inputGateOutput, inputCache := network.passThroughGateWithCache(concatInputMat, network.InputGate)
@@ -185,11 +225,10 @@ func (network *LSTM) learn(inputSeries [][]float64, targets [][]float64, shiftCh
 		// Interpret Gate
 		_, interpretCache := network.passThroughGateWithCache(hiddenState, network.InterpretGate)
 		interpretGateInputCache = append(interpretGateInputCache, interpretCache)
-		fmt.Printf("%.2f\n", utils.GetSlice(hiddenState))
 	}
 
 	cellStateGradient, hiddenStateGradient := mat.NewDense(network.numOutputs, 1, nil), mat.NewDense(network.numOutputs, 1, nil)
-	for i := len(inputSeries) - 1; i >= 0; i++ {
+	for i := len(inputSeries) - 1; i >= 0; i-- {
 		initialCellState, finalCellState := cellStates[i], cellStates[i+1]
 
 		// Calculate the loss through the interpret layer
@@ -202,12 +241,12 @@ func (network *LSTM) learn(inputSeries [][]float64, targets [][]float64, shiftCh
 		// Combine the loss gradient calculated for this current frame with the one passed back from the layer ahead.
 		hiddenStateGradient.Add(hiddenStateGradient, interpretGatePassback)
 
-		var tanhFinalCellState *mat.Dense
+		tanhFinalCellState := mat.NewDense(network.numOutputs, 1, nil)
 		tanhFinalCellState.Apply(func(i int, j int, f float64) float64 { return math.Tanh(f) }, finalCellState)
 
 		// Combine the loss gradient calculated for this frame with respect to cell with the one passed down from ahead.
 		outputGateOutput := utils.LastOf(outputGateInputCache[i])
-		var cellStateLocalGradient *mat.Dense
+		cellStateLocalGradient := mat.NewDense(network.numOutputs, 1, nil)
 		cellStateLocalGradient.Copy(hiddenStateGradient)
 		cellStateLocalGradient.Apply(func(i int, j int, v float64) float64 {
 			tanhCell := tanhFinalCellState.At(i, j)
@@ -216,16 +255,16 @@ func (network *LSTM) learn(inputSeries [][]float64, targets [][]float64, shiftCh
 		cellStateGradient.Add(cellStateGradient, cellStateLocalGradient)
 
 		// Output Gate Gradient Calculation
-		var outputGateGradient *mat.Dense
+		outputGateGradient := mat.NewDense(network.numOutputs, 1, nil)
 		outputGateGradient.MulElem(tanhFinalCellState, hiddenStateGradient)
 		localOutputGateShifts, outputGatePassback := getGateShifts(network.OutputGate, outputGateInputCache[i], outputGateGradient)
 		outputGateShifts = utils.DoubleMap(outputGateShifts, localOutputGateShifts, func(a layers.ShiftType, b layers.ShiftType) layers.ShiftType { return a.Combine(b) })
 
 		// Input and Candidate Gate Gradient Calculation
 		inputGateOutput, candidateGateOutput := utils.LastOf(inputGateInputCache[i]), utils.LastOf(candidateGateInputCache[i])
-		var candidateGateGradient *mat.Dense
+		candidateGateGradient := mat.NewDense(network.numOutputs, 1, nil)
 		candidateGateGradient.MulElem(cellStateGradient, inputGateOutput)
-		var inputGateGradient *mat.Dense
+		inputGateGradient := mat.NewDense(network.numOutputs, 1, nil)
 		inputGateGradient.MulElem(cellStateGradient, candidateGateOutput)
 
 		localCandidateGateShifts, candidateGatePassback := getGateShifts(network.CandidateGate, candidateGateInputCache[i], candidateGateGradient)
@@ -235,12 +274,14 @@ func (network *LSTM) learn(inputSeries [][]float64, targets [][]float64, shiftCh
 		inputGateShifts = utils.DoubleMap(inputGateShifts, localInputGateShifts, func(a layers.ShiftType, b layers.ShiftType) layers.ShiftType { return a.Combine(b) })
 
 		// Forget Gate Gradient Calculation
-		var forgetGateGradient *mat.Dense
+		forgetGateGradient := mat.NewDense(network.numOutputs, 1, nil)
 		forgetGateGradient.MulElem(cellStateGradient, initialCellState)
+		forgetGateOutput := utils.LastOf(forgetGateInputCache[i])
+		cellStateGradient.MulElem(cellStateGradient, forgetGateOutput)
 		localForgetGateShifts, forgetGatePassback := getGateShifts(network.ForgetGate, forgetGateInputCache[i], forgetGateGradient)
 		forgetGateShifts = utils.DoubleMap(forgetGateShifts, localForgetGateShifts, func(a layers.ShiftType, b layers.ShiftType) layers.ShiftType { return a.Combine(b) })
 
-		var combinedPassback *mat.Dense
+		combinedPassback := mat.NewDense(network.concatInputs, 1, nil)
 		combinedPassback.Add(outputGatePassback, candidateGatePassback)
 		combinedPassback.Add(combinedPassback, inputGatePassback)
 		combinedPassback.Add(combinedPassback, forgetGatePassback)
@@ -249,4 +290,52 @@ func (network *LSTM) learn(inputSeries [][]float64, targets [][]float64, shiftCh
 	}
 
 	shiftChannel <- [][]layers.ShiftType{forgetGateShifts, inputGateShifts, candidateGateShifts, outputGateShifts, interpretGateShifts}
+}
+
+func (network *LSTM) getLoss(dataset []datasets.DataPoint) float64 {
+	inputs, targets := utils.Map(dataset, func(d datasets.DataPoint) []float64 { return d.Input }), utils.Map(dataset, func(d datasets.DataPoint) []float64 { return d.Output })
+	guesses := network.EvaluateAcrossInterval(inputs)
+	differences := utils.DoubleMap(targets, guesses, utils.Subtract)
+	toMeanSquared := func(a float64) float64 { return 0.5 * a * a }
+	differences = utils.Map(differences, func(a []float64) []float64 { return utils.Map(a, toMeanSquared) })
+
+	return utils.Reduce(utils.Reduce(differences, utils.Add), func(a float64, b float64) float64 { return a + b })
+}
+
+func (network *LSTM) applyShiftsToGate(layers []layers.Layer, shifts []layers.ShiftType) {
+	for i, shift := range shifts {
+		shift.Apply(layers[i], network.LearningRate)
+	}
+}
+
+func (network *LSTM) applyShifts(shifts [][]layers.ShiftType) {
+	forgetGateShifts, inputGateShifts, candidateGateShifts, outputGateShifts, interpretGateShifts := shifts[0], shifts[1], shifts[2], shifts[3], shifts[4]
+
+	network.applyShiftsToGate(network.ForgetGate, forgetGateShifts)
+	network.applyShiftsToGate(network.InputGate, inputGateShifts)
+	network.applyShiftsToGate(network.CandidateGate, candidateGateShifts)
+	network.applyShiftsToGate(network.OutputGate, outputGateShifts)
+	network.applyShiftsToGate(network.InterpretGate, interpretGateShifts)
+}
+
+func (network *LSTM) Train(dataset []datasets.DataPoint, testingData []datasets.DataPoint, timespan time.Duration) {
+	train := dataset[:60]
+	inputs, targets := datasets.Split(train)
+	fmt.Println(network.getLoss(train))
+
+	start := time.Now()
+	//datapointIndex := 0
+	//epochs := 0
+
+	trainingTime := time.Since(start)
+	for trainingTime < timespan {
+		shiftChannel := make(chan [][]layers.ShiftType)
+		go network.learn(inputs, targets, shiftChannel)
+
+		shifts := <-shiftChannel
+		network.applyShifts(shifts)
+
+		trainingTime = time.Since(start)
+	}
+	fmt.Println(network.getLoss(train))
 }

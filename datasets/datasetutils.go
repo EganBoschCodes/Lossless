@@ -65,6 +65,18 @@ func Apply(dataset []DataPoint, f func([]float64) []float64) {
 	}
 }
 
+func GetInputs(dataset []DataPoint) (inputs [][]float64) {
+	return utils.Map(dataset, func(d DataPoint) []float64 { return d.Input })
+}
+
+func GetOutputs(dataset []DataPoint) (outputs [][]float64) {
+	return utils.Map(dataset, func(d DataPoint) []float64 { return d.Output })
+}
+
+func Split(dataset []DataPoint) (inputs [][]float64, outputs [][]float64) {
+	return GetInputs(dataset), GetOutputs(dataset)
+}
+
 func ToOneHot(value int, maxValue int) []float64 {
 	vec := make([]float64, maxValue)
 	vec[value] = 1
