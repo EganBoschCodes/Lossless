@@ -3,6 +3,7 @@ package networks
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"time"
 
 	"github.com/EganBoschCodes/lossless/datasets"
@@ -183,7 +184,9 @@ func getGateShifts(gate []layers.Layer, gateCache []mat.Matrix, forwardGradients
 	return shifts, forwardGradients
 }
 
-func (network *LSTM) learn(inputSeries [][]float64, targets [][]float64, shiftChannel chan [][]layers.ShiftType) {
+func (network *LSTM) learn(dataset []datasets.DataPoint, shiftChannel chan [][]layers.ShiftType) {
+	inputSeries, targets := datasets.Split(dataset)
+
 	cellStates, hiddenStates := []mat.Matrix{mat.NewDense(network.numOutputs, 1, nil)}, []mat.Matrix{mat.NewDense(network.numOutputs, 1, nil)}
 	forgetGateInputCache, inputGateInputCache, candidateGateInputCache, outputGateInputCache, interpretGateInputCache := make([][]mat.Matrix, 0), make([][]mat.Matrix, 0), make([][]mat.Matrix, 0), make([][]mat.Matrix, 0), make([][]mat.Matrix, 0)
 	forgetGateShifts, inputGateShifts, candidateGateShifts, outputGateShifts, interpretGateShifts := createNilShifts(len(network.ForgetGate)), createNilShifts(len(network.InputGate)), createNilShifts(len(network.CandidateGate)), createNilShifts(len(network.OutputGate)), createNilShifts(len(network.InterpretGate))
@@ -318,24 +321,28 @@ func (network *LSTM) applyShifts(shifts [][]layers.ShiftType) {
 	network.applyShiftsToGate(network.InterpretGate, interpretGateShifts)
 }
 
-func (network *LSTM) Train(dataset []datasets.DataPoint, testingData []datasets.DataPoint, timespan time.Duration) {
-	train := dataset[:60]
-	inputs, targets := datasets.Split(train)
-	fmt.Println(network.getLoss(train))
-
+func (network *LSTM) Train(trainingData []datasets.DataPoint, testingData []datasets.DataPoint, timespan time.Duration) {
+	fmt.Println(network.getLoss(trainingData))
 	start := time.Now()
-	//datapointIndex := 0
-	//epochs := 0
+
+	stepSize := 40
 
 	trainingTime := time.Since(start)
 	for trainingTime < timespan {
 		shiftChannel := make(chan [][]layers.ShiftType)
-		go network.learn(inputs, targets, shiftChannel)
 
-		shifts := <-shiftChannel
-		network.applyShifts(shifts)
+		for i := 0; i < network.BatchSize; i++ {
+			intervalStart := rand.Intn(len(trainingData) - stepSize)
+			go network.learn(trainingData[intervalStart:intervalStart+stepSize], shiftChannel)
+		}
+
+		//combinedShifts := [][]layers.ShiftType{createNilShifts(len(network.ForgetGate)), createNilShifts(len(network.InputGate)), createNilShifts(len(network.CandidateGate)), createNilShifts(len(network.OutputGate)), createNilShifts(len(network.InterpretGate))}
+		for i := 0; i < network.BatchSize; i++ {
+			allShifts := <-shiftChannel
+			network.applyShifts(allShifts)
+		}
 
 		trainingTime = time.Since(start)
 	}
-	fmt.Println(network.getLoss(train))
+	fmt.Println(network.getLoss(trainingData))
 }
