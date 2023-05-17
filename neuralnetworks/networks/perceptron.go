@@ -35,8 +35,12 @@ func (network *Perceptron) Initialize(numInputs int, ls ...layers.Layer) {
 		lastOutput = layer.NumOutputs()
 	}
 
-	network.BatchSize = 8
-	network.LearningRate = 0.05
+	if network.BatchSize == 0 {
+		network.BatchSize = 8
+	}
+	if network.LearningRate == 0 {
+		network.LearningRate = 0.05
+	}
 }
 
 // Takes in a single input and passes it through the network.

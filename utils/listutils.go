@@ -107,3 +107,7 @@ func FindWithCompare[T any, U any](vals []T, val U, f func(T, U) bool) int {
 	}
 	return -1
 }
+
+func LastOf[T any](vals []T) T {
+	return vals[len(vals)-1]
+}
