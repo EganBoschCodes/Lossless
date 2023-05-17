@@ -195,7 +195,6 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []dat
 		// Prepare to capture the weight shifts from each datapoint in the batch
 		shifts := network.getEmptyShift()
 		shiftChannel := make(chan []layers.ShiftType)
-
 		// Start the weight calculations with goroutines
 		for item := 0; item < network.BatchSize; item++ {
 			datapoint := dataset[datapointIndex]

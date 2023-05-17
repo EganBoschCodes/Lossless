@@ -311,6 +311,10 @@ func (network *LSTM) applyShiftsToGate(layers []layers.Layer, shifts []layers.Sh
 	}
 }
 
+func combineShifts(current []layers.ShiftType, next []layers.ShiftType) []layers.ShiftType {
+	return utils.DoubleMap(current, next, func(a layers.ShiftType, b layers.ShiftType) layers.ShiftType { return a.Combine(b) })
+}
+
 func (network *LSTM) applyShifts(shifts [][]layers.ShiftType) {
 	forgetGateShifts, inputGateShifts, candidateGateShifts, outputGateShifts, interpretGateShifts := shifts[0], shifts[1], shifts[2], shifts[3], shifts[4]
 
@@ -321,13 +325,13 @@ func (network *LSTM) applyShifts(shifts [][]layers.ShiftType) {
 	network.applyShiftsToGate(network.InterpretGate, interpretGateShifts)
 }
 
-func (network *LSTM) Train(trainingData []datasets.DataPoint, testingData []datasets.DataPoint, timespan time.Duration) {
-	fmt.Println(network.getLoss(trainingData))
+func (network *LSTM) Train(trainingData []datasets.DataPoint, testingData []datasets.DataPoint, stepSize int, timespan time.Duration) {
+	fmt.Printf("Beginning Loss (Training, Testing): %.2f, %.2f\n\n", network.getLoss(trainingData), network.getLoss(testingData))
+
 	start := time.Now()
-
-	stepSize := 40
-
 	trainingTime := time.Since(start)
+	intervalsTrainedOn := 0
+
 	for trainingTime < timespan {
 		shiftChannel := make(chan [][]layers.ShiftType)
 
@@ -336,13 +340,28 @@ func (network *LSTM) Train(trainingData []datasets.DataPoint, testingData []data
 			go network.learn(trainingData[intervalStart:intervalStart+stepSize], shiftChannel)
 		}
 
-		//combinedShifts := [][]layers.ShiftType{createNilShifts(len(network.ForgetGate)), createNilShifts(len(network.InputGate)), createNilShifts(len(network.CandidateGate)), createNilShifts(len(network.OutputGate)), createNilShifts(len(network.InterpretGate))}
+		combinedShifts := [][]layers.ShiftType{createNilShifts(len(network.ForgetGate)), createNilShifts(len(network.InputGate)), createNilShifts(len(network.CandidateGate)), createNilShifts(len(network.OutputGate)), createNilShifts(len(network.InterpretGate))}
 		for i := 0; i < network.BatchSize; i++ {
 			allShifts := <-shiftChannel
-			network.applyShifts(allShifts)
+			combinedShifts = utils.DoubleMap(combinedShifts, allShifts, combineShifts)
 		}
+		network.applyShifts(combinedShifts)
 
+		// Just let me know how much time is left
 		trainingTime = time.Since(start)
+		steps := float64(trainingTime*1000/timespan) / 10
+		progressBar := ""
+		for i := 0; i < 20; i++ {
+			if i < int(steps)/5 {
+				progressBar = fmt.Sprint(progressBar, "▒")
+				continue
+			}
+			progressBar = fmt.Sprint(progressBar, " ")
+		}
+		fmt.Printf("\rTraining Progress : -{%s}- (%.1f%%)  ", progressBar, steps)
+
+		intervalsTrainedOn += network.BatchSize
 	}
-	fmt.Println(network.getLoss(trainingData))
+
+	fmt.Printf("\n\nIntervals Trained: %d\nFinal Loss (Training, Testing): %.2f, %.2f\n", intervalsTrainedOn, network.getLoss(trainingData), network.getLoss(testingData))
 }
