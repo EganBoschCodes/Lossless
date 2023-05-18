@@ -2,6 +2,7 @@ package datasets
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
 	"strings"
@@ -14,6 +15,9 @@ type DataFrame struct {
 	values  [][]FrameEntry
 }
 
+// Reads a csv at the given path into a DataFrame. The headers argument
+// is a boolean representing if the first row in the dataset is just the
+// headers for the columns. This should usually be set to true.
 func ReadCSV(path string, headers bool) DataFrame {
 	bytes, err := os.ReadFile(path)
 	frame := DataFrame{}
@@ -27,7 +31,8 @@ func ReadCSV(path string, headers bool) DataFrame {
 		panic(fmt.Sprintf("The file at \"%s\" is empty!", path))
 	}
 
-	rawRows := strings.Split(string(bytes), "\r\n")
+	rawRows := strings.Split(string(bytes), "\n")
+	rawRows = utils.Map(rawRows, strings.TrimSpace)
 	rawRows = utils.Filter(rawRows, func(s string) bool { return len(s) > 0 })
 
 	if headers {
@@ -220,7 +225,56 @@ func (frame *DataFrame) NormalizeColumnSlice(colSlice string) (means []float64, 
 	return means, stddevs
 }
 
-func (frame *DataFrame) MapFloatColumn(title string, lambda func(float64) float64) {
+func (frame *DataFrame) ClampColumn(title string, newMin float64, newMax float64) (float64, float64) {
+	index := utils.Find(frame.headers, title)
+	if index < 0 {
+		panic("There is no column titled \"%s\" in this dataframe!\n\n")
+	}
+	return frame.ClampNthColumn(index, newMin, newMax)
+}
+
+func (frame *DataFrame) ClampNthColumn(col int, newMin float64, newMax float64) (float64, float64) {
+	column := frame.GetNthCol(col)
+
+	if len(column) == 0 {
+		panic("Can't normalize an empty column!")
+	}
+	if col < 0 || col >= len(frame.values[0]) {
+		panic(fmt.Sprintf("%d is out of bounds for this dataframe! (Needs to be 0-%d)", col, len(frame.values[0])-1))
+	}
+
+	switch column[0].(type) {
+	case *StringEntry:
+		panic("Cannot clamp a string column (and you shouldn't want to)")
+	case *VectorEntry:
+		panic("Cannot clamp a vector column (and you shouldn't want to)")
+	}
+
+	columnNums := utils.Map(column, func(f FrameEntry) float64 { return f.(*NumberEntry).Value })
+	min, max := utils.Reduce(columnNums, func(a float64, b float64) float64 { return math.Min(a, b) }), utils.Reduce(columnNums, func(a float64, b float64) float64 { return math.Max(a, b) })
+
+	clampedValues := utils.Map(columnNums, func(f float64) float64 { return (f-min)/(max-min)*(newMax-newMin) + newMin })
+	clampedColumn := utils.Map(clampedValues, func(f float64) FrameEntry { return &NumberEntry{Value: f} })
+
+	frame.OverwriteNthColumn(clampedColumn, col)
+	return min, max
+}
+
+func (frame *DataFrame) ClampColumnSlice(colSlice string, newMin float64, newMax float64) (mins []float64, maxes []float64) {
+	mins, maxes = make([]float64, 0), make([]float64, 0)
+	isSelected := utils.ParseSlice(colSlice)
+	for i := 0; i < len(frame.headers); i++ {
+		if !isSelected(i) {
+			continue
+		}
+		min, max := frame.ClampNthColumn(i, newMin, newMax)
+		mins = append(mins, min)
+		maxes = append(maxes, max)
+	}
+	return mins, maxes
+}
+
+func (frame *DataFrame) MapFloatColumn(title string, lambda func(int, float64) float64) {
 	index := utils.Find(frame.headers, title)
 	if index < 0 {
 		panic("There is no column titled \"%s\" in this dataframe!\n\n")
@@ -228,7 +282,7 @@ func (frame *DataFrame) MapFloatColumn(title string, lambda func(float64) float6
 	frame.MapNthFloatColumn(index, lambda)
 }
 
-func (frame *DataFrame) MapNthFloatColumn(col int, lambda func(float64) float64) {
+func (frame *DataFrame) MapNthFloatColumn(col int, lambda func(int, float64) float64) {
 	if len(frame.values) == 0 {
 		panic("Cannot map an empty column!")
 	}
@@ -243,12 +297,12 @@ func (frame *DataFrame) MapNthFloatColumn(col int, lambda func(float64) float64)
 		panic("Cannot map a vector column, only float or string columns.")
 	}
 
-	for _, row := range frame.values {
-		row[col] = &NumberEntry{Value: lambda(row[col].(*NumberEntry).Value)}
+	for i, row := range frame.values {
+		row[col] = &NumberEntry{Value: lambda(i, row[col].(*NumberEntry).Value)}
 	}
 }
 
-func (frame *DataFrame) MapFloatColumnSlice(colSlice string, lambda func(float64) float64) {
+func (frame *DataFrame) MapFloatColumnSlice(colSlice string, lambda func(int, float64) float64) {
 	isSelected := utils.ParseSlice(colSlice)
 	for i := 0; i < frame.Cols(); i++ {
 		if !isSelected(i) {
@@ -311,7 +365,7 @@ func (frame *DataFrame) DeleteRows(sliceString string) {
 	frame.values = newValues
 }
 
-func (frame *DataFrame) SelectRows(sliceString string) (selectedFrame DataFrame) {
+func (frame *DataFrame) SelectRowSlice(sliceString string) (selectedFrame DataFrame) {
 	selected := utils.ParseSlice(sliceString)
 	newValues := make([][]FrameEntry, 0)
 	for i, row := range frame.values {
@@ -324,8 +378,28 @@ func (frame *DataFrame) SelectRows(sliceString string) (selectedFrame DataFrame)
 	return selectedFrame
 }
 
-func (frame *DataFrame) DeleteColumns(sliceString string) {
+func (frame *DataFrame) SelectRowsMatching(header string, entry FrameEntry) (selectedFrame DataFrame) {
+	newValues := make([][]FrameEntry, 0)
+	col := frame.GetCol(header)
+	for i, row := range frame.values {
+		if col[i].Equals(entry) {
+			newValues = append(newValues, row)
+		}
+	}
+
+	selectedFrame = DataFrame{headers: frame.headers, values: newValues}
+	return selectedFrame
+}
+
+func (frame *DataFrame) DeleteColumnSlice(sliceString string) {
 	selected := utils.ParseSlice(sliceString)
+
+	newHeaders := make([]string, 0)
+	for i, val := range frame.headers {
+		if !selected(i) {
+			newHeaders = append(newHeaders, val)
+		}
+	}
 
 	newValues := make([][]FrameEntry, len(frame.values))
 	for i, row := range frame.values {
@@ -337,7 +411,38 @@ func (frame *DataFrame) DeleteColumns(sliceString string) {
 		}
 	}
 
-	frame.values = newValues
+	frame.values, frame.headers = newValues, newHeaders
+}
+
+func (frame *DataFrame) DeleteColumns(headers ...string) {
+	newHeaders := make([]string, 0)
+	for _, val := range frame.headers {
+		if utils.Find(headers, val) == -1 {
+			newHeaders = append(newHeaders, val)
+		}
+	}
+
+	newValues := make([][]FrameEntry, len(frame.values))
+	for i, row := range frame.values {
+		newValues[i] = make([]FrameEntry, 0)
+		for j, val := range row {
+			if utils.Find(headers, frame.headers[j]) == -1 {
+				newValues[i] = append(newValues[i], val)
+			}
+		}
+	}
+
+	frame.values, frame.headers = newValues, newHeaders
+}
+
+func (frame *DataFrame) AddColumn(header string, values []float64) {
+	if len(values) != len(frame.values) {
+		panic("New column needs to have the same number of rows as the frame!")
+	}
+	frame.headers = append(frame.headers, header)
+	for i := range frame.values {
+		frame.values[i] = append(frame.values[i], &NumberEntry{values[i]})
+	}
 }
 
 func (frame *DataFrame) SelectColumns(sliceString string) (selectedFrame DataFrame) {
@@ -374,6 +479,27 @@ func (frame *DataFrame) ToDataset(inputSlice string, outputSlice string) []DataP
 				input = val.MergeInto(input)
 			} else if isOutput(col) {
 				output = val.MergeInto(output)
+			}
+		}
+		dataset[i] = DataPoint{Input: input, Output: output}
+	}
+
+	return dataset
+}
+
+func (frame *DataFrame) ToSequentialDataset(inputSlice string, outputSlice string) []DataPoint {
+	isInput, isOutput := utils.ParseSlice(inputSlice), utils.ParseSlice(outputSlice)
+
+	dataset := make([]DataPoint, len(frame.values))
+	for i := range frame.values[:len(frame.values)-1] {
+		row, nextRow := frame.values[i], frame.values[i+1]
+		input, output := make([]float64, 0), make([]float64, 0)
+		for col := range row {
+			if isInput(col) {
+				input = row[col].MergeInto(input)
+			}
+			if isOutput(col) {
+				output = nextRow[col].MergeInto(output)
 			}
 		}
 		dataset[i] = DataPoint{Input: input, Output: output}
