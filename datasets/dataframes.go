@@ -274,7 +274,7 @@ func (frame *DataFrame) ClampColumnSlice(colSlice string, newMin float64, newMax
 	return mins, maxes
 }
 
-func (frame *DataFrame) MapFloatColumn(title string, lambda func(float64) float64) {
+func (frame *DataFrame) MapFloatColumn(title string, lambda func(int, float64) float64) {
 	index := utils.Find(frame.headers, title)
 	if index < 0 {
 		panic("There is no column titled \"%s\" in this dataframe!\n\n")
@@ -282,7 +282,7 @@ func (frame *DataFrame) MapFloatColumn(title string, lambda func(float64) float6
 	frame.MapNthFloatColumn(index, lambda)
 }
 
-func (frame *DataFrame) MapNthFloatColumn(col int, lambda func(float64) float64) {
+func (frame *DataFrame) MapNthFloatColumn(col int, lambda func(int, float64) float64) {
 	if len(frame.values) == 0 {
 		panic("Cannot map an empty column!")
 	}
@@ -297,12 +297,12 @@ func (frame *DataFrame) MapNthFloatColumn(col int, lambda func(float64) float64)
 		panic("Cannot map a vector column, only float or string columns.")
 	}
 
-	for _, row := range frame.values {
-		row[col] = &NumberEntry{Value: lambda(row[col].(*NumberEntry).Value)}
+	for i, row := range frame.values {
+		row[col] = &NumberEntry{Value: lambda(i, row[col].(*NumberEntry).Value)}
 	}
 }
 
-func (frame *DataFrame) MapFloatColumnSlice(colSlice string, lambda func(float64) float64) {
+func (frame *DataFrame) MapFloatColumnSlice(colSlice string, lambda func(int, float64) float64) {
 	isSelected := utils.ParseSlice(colSlice)
 	for i := 0; i < frame.Cols(); i++ {
 		if !isSelected(i) {
@@ -433,6 +433,16 @@ func (frame *DataFrame) DeleteColumns(headers ...string) {
 	}
 
 	frame.values, frame.headers = newValues, newHeaders
+}
+
+func (frame *DataFrame) AddColumn(header string, values []float64) {
+	if len(values) != len(frame.values) {
+		panic("New column needs to have the same number of rows as the frame!")
+	}
+	frame.headers = append(frame.headers, header)
+	for i := range frame.values {
+		frame.values[i] = append(frame.values[i], &NumberEntry{values[i]})
+	}
 }
 
 func (frame *DataFrame) SelectColumns(sliceString string) (selectedFrame DataFrame) {

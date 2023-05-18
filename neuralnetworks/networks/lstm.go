@@ -8,6 +8,7 @@ import (
 
 	"github.com/EganBoschCodes/lossless/datasets"
 	"github.com/EganBoschCodes/lossless/neuralnetworks/layers"
+	"github.com/EganBoschCodes/lossless/neuralnetworks/save"
 	"github.com/EganBoschCodes/lossless/utils"
 	"gonum.org/v1/gonum/mat"
 )
@@ -242,6 +243,7 @@ func (network *LSTM) learn(dataset []datasets.DataPoint, shiftChannel chan [][]l
 		interpretGateShifts = utils.DoubleMap(interpretGateShifts, localInterpretGateShifts, func(a layers.ShiftType, b layers.ShiftType) layers.ShiftType { return a.Combine(b) })
 
 		// Combine the loss gradient calculated for this current frame with the one passed back from the layer ahead.
+		//hiddenStateGradient.Scale(0.5, hiddenStateGradient)
 		hiddenStateGradient.Add(hiddenStateGradient, interpretGatePassback)
 
 		tanhFinalCellState := mat.NewDense(network.numOutputs, 1, nil)
@@ -364,4 +366,74 @@ func (network *LSTM) Train(trainingData []datasets.DataPoint, testingData []data
 	}
 
 	fmt.Printf("\n\nIntervals Trained: %d\nFinal Loss (Training, Testing): %.2f, %.2f\n", intervalsTrainedOn, network.getLoss(trainingData), network.getLoss(testingData))
+}
+
+func getGateBytes(gate []layers.Layer) []byte {
+	bytes := save.ConstantsToBytes(len(gate))
+	for _, layer := range gate {
+		layerBytes := layer.ToBytes()
+		bytes = append(bytes, save.ConstantsToBytes(layers.LayerToIndex(layer), len(layerBytes))...)
+		bytes = append(bytes, layerBytes...)
+	}
+	return bytes
+}
+
+func (network *LSTM) ToBytes() []byte {
+	bytes := save.ConstantsToBytes(network.numInputs, network.numOutputs)
+
+	bytes = append(bytes, getGateBytes(network.ForgetGate)...)
+	bytes = append(bytes, getGateBytes(network.InputGate)...)
+	bytes = append(bytes, getGateBytes(network.CandidateGate)...)
+	bytes = append(bytes, getGateBytes(network.OutputGate)...)
+	bytes = append(bytes, getGateBytes(network.InterpretGate)...)
+
+	return bytes
+}
+
+func (network *LSTM) toGateFrom(bytes []byte) ([]layers.Layer, []byte) {
+	numLayers, bytes := save.ConstantsFromBytes(bytes[:4])[0], bytes[4:]
+	numOutputs := network.concatInputs
+
+	gateLayers := make([]layers.Layer, numLayers)
+	for i := range gateLayers {
+		constants := save.ConstantsFromBytes(bytes[:8])
+		layer := layers.IndexToLayer(constants[0])
+		layer.FromBytes(bytes[8 : 8+constants[1]])
+		bytes = bytes[8+constants[1]:]
+		layer.Initialize(numOutputs)
+		numOutputs = layer.NumOutputs()
+
+		gateLayers[i] = layer
+	}
+	return gateLayers, bytes
+}
+
+func (network *LSTM) FromBytes(bytes []byte) {
+	constants := save.ConstantsFromBytes(bytes[:8])
+	network.numInputs, network.numOutputs, network.concatInputs = constants[0], constants[1], constants[0]+constants[1]
+
+	bytes = bytes[8:]
+	network.ForgetGate, bytes = network.toGateFrom(bytes)
+	network.InputGate, bytes = network.toGateFrom(bytes)
+	network.CandidateGate, bytes = network.toGateFrom(bytes)
+	network.OutputGate, bytes = network.toGateFrom(bytes)
+	network.InterpretGate, _ = network.toGateFrom(bytes)
+}
+
+func (network *LSTM) Save(dir string, name string) {
+	if len(dir) > 0 {
+		save.WriteBytesToFile(fmt.Sprintf("%s/%s.lsls", dir, name), network.ToBytes())
+	} else {
+		save.WriteBytesToFile(fmt.Sprintf("%s.lsls", name), network.ToBytes())
+	}
+}
+
+func (network *LSTM) Open(dir string, name string) {
+	var rawBytes []byte
+	if len(dir) > 0 {
+		rawBytes = save.ReadBytesFromFile(fmt.Sprintf("%s/%s.lsls", dir, name))
+	} else {
+		rawBytes = save.ReadBytesFromFile(fmt.Sprintf("%s.lsls", name))
+	}
+	network.FromBytes(rawBytes)
 }
