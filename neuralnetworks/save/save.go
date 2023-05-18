@@ -63,7 +63,11 @@ func WriteBytesToFile(path string, bytes []byte) {
 		recursivelyCreateFolders(pathSteps[:len(pathSteps)-1])
 	}
 
-	f, _ := os.Create(path)
+	f, e := os.Create(path)
+	if e != nil {
+		fmt.Println("\n\nError saving your network to a file!")
+		panic(e)
+	}
 	defer f.Close()
 
 	_, err := f.Write(bytes)
