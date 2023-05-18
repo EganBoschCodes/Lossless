@@ -24,8 +24,7 @@ func (layer *LinearLayer) Initialize(numInputs int) {
 	}
 
 	if layer.Outputs == 0 {
-		fmt.Println("You must specify how many Outputs a LinearLayer has!")
-		panic(1)
+		panic("You must specify how many Outputs a LinearLayer has!")
 	}
 
 	// Use Xavier Initialization on the weights

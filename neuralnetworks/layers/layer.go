@@ -23,6 +23,11 @@ type Layer interface {
 	PrettyPrint() string
 }
 
+type Shape struct {
+	Rows int
+	Cols int
+}
+
 type ShiftType interface {
 	Apply(Layer, float64)
 	Combine(ShiftType) ShiftType

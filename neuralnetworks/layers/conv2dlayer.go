@@ -9,11 +9,6 @@ import (
 	"gonum.org/v1/gonum/mat"
 )
 
-type Shape struct {
-	Rows int
-	Cols int
-}
-
 type Conv2DLayer struct {
 	InputShape  Shape
 	KernelShape Shape
