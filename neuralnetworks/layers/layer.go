@@ -41,16 +41,22 @@ func (n *NilShift) Combine(other ShiftType) ShiftType {
 }
 
 type WeightShift struct {
-	shift mat.Matrix
+	weightShift mat.Matrix
+	biasShift   mat.Matrix
 }
 
 func (w *WeightShift) Apply(layer Layer, scale float64) {
-	w.shift.(*mat.Dense).Scale(scale, w.shift)
-	layer.(*LinearLayer).weights.(*mat.Dense).Add(layer.(*LinearLayer).weights, w.shift)
+	w.weightShift.(*mat.Dense).Scale(scale, w.weightShift)
+	w.biasShift.(*mat.Dense).Scale(scale, w.biasShift)
+
+	layer.(*LinearLayer).weights.(*mat.Dense).Add(layer.(*LinearLayer).weights, w.weightShift)
+	layer.(*LinearLayer).biases.(*mat.Dense).Add(layer.(*LinearLayer).biases, w.biasShift)
 }
 
 func (w *WeightShift) Combine(w2 ShiftType) ShiftType {
-	w.shift.(*mat.Dense).Add(w.shift, w2.(*WeightShift).shift)
+	w.weightShift.(*mat.Dense).Add(w.weightShift, w2.(*WeightShift).weightShift)
+	w.biasShift.(*mat.Dense).Add(w.biasShift, w2.(*WeightShift).biasShift)
+
 	return w
 }
 
