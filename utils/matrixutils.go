@@ -15,6 +15,11 @@ func FromSlice(f []float64) mat.Matrix {
 	return mat.NewDense(len(f), 1, f)
 }
 
+func DenseLike(m mat.Matrix) *mat.Dense {
+	r, c := m.Dims()
+	return mat.NewDense(r, c, nil)
+}
+
 /*
 	Standard Matrix Convolution:
 	----------------------------------------------------------------------------------

@@ -16,6 +16,8 @@ type LinearLayer struct {
 	weights  mat.Matrix
 	biases   mat.Matrix
 	n_inputs int
+
+	initialized bool
 }
 
 func (layer *LinearLayer) Initialize(numInputs int) {
@@ -42,6 +44,8 @@ func (layer *LinearLayer) Initialize(numInputs int) {
 
 	layer.weights = mat.NewDense(layer.Outputs, numInputs, initialWeights)
 	layer.biases = mat.NewDense(layer.Outputs, 1, initialBiases)
+
+	layer.initialized = true
 }
 
 func (layer *LinearLayer) Pass(input mat.Matrix) mat.Matrix {
