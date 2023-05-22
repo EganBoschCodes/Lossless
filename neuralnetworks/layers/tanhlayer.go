@@ -23,13 +23,13 @@ func (layer *TanhLayer) Initialize(n_inputs int) {
 	}
 }
 
-func (layer *TanhLayer) Pass(input mat.Matrix) mat.Matrix {
+func (layer *TanhLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
 	input.(*mat.Dense).Apply(func(i int, j int, v float64) float64 { return math.Tanh(v) }, input)
-	return input
+	return input, &OutputCache{Output: input.(*mat.Dense)}
 }
 
-func (layer *TanhLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
-	outputSlice := utils.GetSlice(outputs)
+func (layer *TanhLayer) Back(cache CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+	outputSlice := utils.GetSlice(cache.(*OutputCache).Output)
 	_, c := forwardGradients.Dims()
 	forwardGradients.(*mat.Dense).Apply(func(i int, j int, v float64) float64 {
 		val := outputSlice[i*c+j]

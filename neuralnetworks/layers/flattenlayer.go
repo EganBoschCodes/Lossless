@@ -16,11 +16,11 @@ func (layer *FlattenLayer) Initialize(n_inputs int) {
 	layer.n_inputs = n_inputs
 }
 
-func (layer *FlattenLayer) Pass(input mat.Matrix) mat.Matrix {
-	return mat.NewDense(layer.n_inputs, 1, utils.GetSlice(input))
+func (layer *FlattenLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
+	return mat.NewDense(layer.n_inputs, 1, utils.GetSlice(input)), nil
 }
 
-func (layer *FlattenLayer) Back(_ mat.Matrix, _ mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+func (layer *FlattenLayer) Back(_ CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
 	return &NilShift{}, forwardGradients
 }
 

@@ -14,6 +14,7 @@ type LinearLayer struct {
 	Outputs int
 
 	weights  mat.Matrix
+	biases   mat.Matrix
 	n_inputs int
 }
 
@@ -24,50 +25,48 @@ func (layer *LinearLayer) Initialize(numInputs int) {
 	}
 
 	if layer.Outputs == 0 {
-		fmt.Println("You must specify how many Outputs a LinearLayer has!")
-		panic(1)
+		panic("You must specify how many Outputs a LinearLayer has!")
 	}
 
 	// Use Xavier Initialization on the weights
 	fan_avg := (float64(numInputs) + float64(layer.Outputs)) / 2
-	data := make([]float64, (numInputs+1)*layer.Outputs)
-	for i := range data {
-		data[i] = rand.NormFloat64() / fan_avg
+	initialWeights := make([]float64, numInputs*layer.Outputs)
+	for i := range initialWeights {
+		initialWeights[i] = rand.NormFloat64() / fan_avg
 	}
-	layer.weights = mat.NewDense(layer.Outputs, numInputs+1, data)
+
+	initialBiases := make([]float64, layer.Outputs)
+	for i := range initialBiases {
+		initialBiases[i] = rand.NormFloat64() / fan_avg
+	}
+
+	layer.weights = mat.NewDense(layer.Outputs, numInputs, initialWeights)
+	layer.biases = mat.NewDense(layer.Outputs, 1, initialBiases)
 }
 
-func (layer *LinearLayer) Pass(input mat.Matrix) mat.Matrix {
-	// Add the bias term
-	ir, _ := input.Dims()
-	input = input.(*mat.Dense).Grow(1, 0)
-	input.(*mat.Dense).Set(ir, 0, 1)
-
+func (layer *LinearLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
 	// Multiply by weights
 	output := mat.NewDense(layer.Outputs, 1, nil)
 	output.Mul(layer.weights, input)
-	return output
+
+	// Add biases
+	output.Add(output, layer.biases)
+	return output, &InputCache{Input: input.(*mat.Dense)}
 }
 
-func (layer *LinearLayer) Back(inputs mat.Matrix, _ mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+func (layer *LinearLayer) Back(cache CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+	inputs := cache.(*InputCache).Input
+
 	inputSize, _ := inputs.Dims()
-	inputSize += 1
-
 	gradSize, _ := forwardGradients.Dims()
+
 	shift := mat.NewDense(gradSize, inputSize, nil)
+	shift.Mul(forwardGradients, inputs.T())
 
-	inputSlice := inputs.(*mat.Dense).RawMatrix().Data
-	inputSlice = append(inputSlice, 1.0)
-	inputVec := mat.NewDense(1, inputSize, inputSlice)
+	newGradient := mat.NewDense(inputSize, 1, nil)
+	newGradient.Mul(layer.weights.T(), forwardGradients)
 
-	shift.Mul(forwardGradients, inputVec)
-
-	subweights := layer.weights.(*mat.Dense).Slice(0, gradSize, 0, inputSize-1).T()
-
-	newGradient := mat.NewDense(inputSize-1, 1, nil)
-	newGradient.Mul(subweights, forwardGradients)
-
-	return &WeightShift{shift: shift}, newGradient
+	return &WeightShift{weightShift: shift, biasShift: forwardGradients}, newGradient
 }
 
 func (layer *LinearLayer) NumOutputs() int {
@@ -75,15 +74,21 @@ func (layer *LinearLayer) NumOutputs() int {
 }
 
 func (layer *LinearLayer) ToBytes() []byte {
-	saveBytes := save.ConstantsToBytes(layer.Outputs)
-	saveBytes = append(saveBytes, save.ToBytes(utils.GetSlice(layer.weights))...)
+	weightSlice, biasSlice := save.ToBytes(utils.GetSlice(layer.weights)), save.ToBytes(utils.GetSlice(layer.biases))
+	saveBytes := save.ConstantsToBytes(layer.Outputs, len(weightSlice)/8)
+
+	saveBytes = append(saveBytes, weightSlice...)
+	saveBytes = append(saveBytes, biasSlice...)
 	return saveBytes
 }
 
 func (layer *LinearLayer) FromBytes(bytes []byte) {
-	constInts, weightSlice := save.ConstantsFromBytes(bytes[:4]), save.FromBytes(bytes[4:])
+	constInts, weightsSlice := save.ConstantsFromBytes(bytes[:8]), save.FromBytes(bytes[8:])
 	layer.Outputs = constInts[0]
-	layer.weights = mat.NewDense(layer.Outputs, len(weightSlice)/layer.Outputs, weightSlice)
+	weightLength := constInts[1]
+
+	layer.weights = mat.NewDense(layer.Outputs, weightLength/layer.Outputs, weightsSlice[:weightLength])
+	layer.biases = mat.NewDense(layer.Outputs, 1, weightsSlice[weightLength:])
 }
 
 func (layer *LinearLayer) PrettyPrint() string {

@@ -1,5 +1,7 @@
 package utils
 
+import "fmt"
+
 func Reduce[T any](vals []T, reduction func(T, T) T) T {
 	ret := vals[0]
 	for i := 1; i < len(vals); i++ {
@@ -108,14 +110,38 @@ func FindWithCompare[T any, U any](vals []T, val U, f func(T, U) bool) int {
 	return -1
 }
 
+// Returns the last item in a list.
 func LastOf[T any](vals []T) T {
 	return vals[len(vals)-1]
 }
 
+// Pointwise difference of two lists of floats.
 func Subtract(a []float64, b []float64) []float64 {
 	return DoubleMap(a, b, func(va float64, vb float64) float64 { return va - vb })
 }
 
+// Pointwise sum of two lists of floats.
 func Add(a []float64, b []float64) []float64 {
 	return DoubleMap(a, b, func(va float64, vb float64) float64 { return va + vb })
+}
+
+// Takes in a long single slice and cuts it into intervals of the given size. Used internally to take a giant slice containing a list of inputs and cut and map them into the individual input matrices, for example.
+func Cut[T any](vals []T, intervalSize int) [][]T {
+	if len(vals)%intervalSize != 0 {
+		panic(fmt.Sprintf("A list of length %d can't be cut into intervals of %d!", len(vals), intervalSize))
+	}
+
+	cutVals := make([][]T, len(vals)/intervalSize)
+	for i := range cutVals {
+		cutVals[i] = vals[i*intervalSize : (i+1)*intervalSize]
+	}
+	return cutVals
+}
+
+func Duplicate[T any](val T, length int) []T {
+	vals := make([]T, length)
+	for i := range vals {
+		vals[i] = val
+	}
+	return vals
 }

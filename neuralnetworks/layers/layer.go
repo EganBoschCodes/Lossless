@@ -14,13 +14,38 @@ import (
 
 type Layer interface {
 	Initialize(int)
-	Pass(mat.Matrix) mat.Matrix
-	Back(mat.Matrix, mat.Matrix, mat.Matrix) (ShiftType, mat.Matrix)
+	Pass(mat.Matrix) (mat.Matrix, CacheType)
+	Back(CacheType, mat.Matrix) (ShiftType, mat.Matrix)
 	NumOutputs() int
 
 	ToBytes() []byte
 	FromBytes([]byte)
 	PrettyPrint() string
+}
+
+type Shape struct {
+	Rows int
+	Cols int
+}
+
+type CacheType interface{}
+
+type InputCache struct {
+	Input *mat.Dense
+}
+
+type OutputCache struct {
+	Output *mat.Dense
+}
+
+type LSTMCache struct {
+	Inputs           []*mat.Dense
+	HiddenStates     []*mat.Dense
+	CellStates       []*mat.Dense
+	ForgetOutputs    []*mat.Dense
+	InputOutputs     []*mat.Dense
+	CandidateOutputs []*mat.Dense
+	OutputOutputs    []*mat.Dense
 }
 
 type ShiftType interface {
@@ -36,16 +61,22 @@ func (n *NilShift) Combine(other ShiftType) ShiftType {
 }
 
 type WeightShift struct {
-	shift mat.Matrix
+	weightShift mat.Matrix
+	biasShift   mat.Matrix
 }
 
 func (w *WeightShift) Apply(layer Layer, scale float64) {
-	w.shift.(*mat.Dense).Scale(scale, w.shift)
-	layer.(*LinearLayer).weights.(*mat.Dense).Add(layer.(*LinearLayer).weights, w.shift)
+	w.weightShift.(*mat.Dense).Scale(scale, w.weightShift)
+	w.biasShift.(*mat.Dense).Scale(scale, w.biasShift)
+
+	layer.(*LinearLayer).weights.(*mat.Dense).Add(layer.(*LinearLayer).weights, w.weightShift)
+	layer.(*LinearLayer).biases.(*mat.Dense).Add(layer.(*LinearLayer).biases, w.biasShift)
 }
 
 func (w *WeightShift) Combine(w2 ShiftType) ShiftType {
-	w.shift.(*mat.Dense).Add(w.shift, w2.(*WeightShift).shift)
+	w.weightShift.(*mat.Dense).Add(w.weightShift, w2.(*WeightShift).weightShift)
+	w.biasShift.(*mat.Dense).Add(w.biasShift, w2.(*WeightShift).biasShift)
+
 	return w
 }
 
@@ -67,6 +98,31 @@ func (k *KernelShift) Combine(k2 ShiftType) ShiftType {
 	return k
 }
 
+type LSTMShift struct {
+	forgetShift    ShiftType
+	inputShift     ShiftType
+	candidateShift ShiftType
+	outputShift    ShiftType
+}
+
+func (l *LSTMShift) Apply(layer Layer, scale float64) {
+	lstmLayer := layer.(*LSTMLayer)
+	l.forgetShift.Apply(&lstmLayer.forgetGate, scale)
+	l.inputShift.Apply(&lstmLayer.inputGate, scale)
+	l.candidateShift.Apply(&lstmLayer.candidateGate, scale)
+	l.outputShift.Apply(&lstmLayer.outputGate, scale)
+}
+
+func (l *LSTMShift) Combine(l2 ShiftType) ShiftType {
+	lstm2 := l2.(*LSTMShift)
+	l.forgetShift = l.forgetShift.Combine(lstm2.forgetShift)
+	l.inputShift = l.inputShift.Combine(lstm2.inputShift)
+	l.candidateShift = l.candidateShift.Combine(lstm2.candidateShift)
+	l.outputShift = l.outputShift.Combine(lstm2.outputShift)
+
+	return l
+}
+
 func IndexToLayer(index int) Layer {
 	switch index {
 	case 0:
@@ -85,6 +141,8 @@ func IndexToLayer(index int) Layer {
 		return &MaxPool2DLayer{}
 	case 7:
 		return &FlattenLayer{}
+	case 8:
+		return &LSTMLayer{}
 	default:
 		return nil
 	}
@@ -108,6 +166,8 @@ func LayerToIndex(layer Layer) int {
 		return 6
 	case *FlattenLayer:
 		return 7
+	case *LSTMLayer:
+		return 8
 	default:
 		return -1
 	}
