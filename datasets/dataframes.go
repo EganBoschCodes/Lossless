@@ -513,6 +513,28 @@ func (frame *DataFrame) ToSequentialDataset(inputSlice string, outputSlice strin
 	return dataset
 }
 
+func (frame *DataFrame) ToLSTMDataset(inputSlice string, outputSlice string) []DataPoint {
+	isInput, isOutput := utils.ParseSlice(inputSlice), utils.ParseSlice(outputSlice)
+
+	dataset := make([]DataPoint, len(frame.values))
+	for i, row := range frame.values[:len(frame.values)-1] {
+		nextRow := frame.values[i+1]
+		input, output := make([]float64, 0), make([]float64, 0)
+		for col := range nextRow {
+			if isInput(col) {
+				input = row[col].MergeInto(input)
+			}
+			if isOutput(col) {
+				output = nextRow[col].MergeInto(output)
+			}
+		}
+
+		dataset[i] = DataPoint{Input: input, Output: output}
+	}
+
+	return dataset
+}
+
 func (frame *DataFrame) PrintSummary() {
 	numEntities := utils.Min(10, len(frame.values))
 	displayEntries := frame.values[:numEntities]

@@ -278,6 +278,7 @@ func (network *Sequential) FromBytes(bytes []byte) {
 		layerData := save.ConstantsFromBytes(bytes[i : i+8])
 		layer := layers.IndexToLayer(layerData[0])
 		dataLength := layerData[1]
+
 		i += 8
 
 		layer.FromBytes(bytes[i : i+dataLength])

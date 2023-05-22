@@ -246,6 +246,7 @@ func (layer *LSTMLayer) ToBytes() []byte {
 }
 
 func (layer *LSTMLayer) FromBytes(bytes []byte) {
+
 	constInts, layersSlice := save.ConstantsFromBytes(bytes[:16]), bytes[16:]
 	layer.Outputs, layer.IntervalSize, layer.OutputSequence = constInts[0], constInts[1], constInts[2] != 0
 	gateSliceLength := constInts[3]

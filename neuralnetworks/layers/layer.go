@@ -141,6 +141,8 @@ func IndexToLayer(index int) Layer {
 		return &MaxPool2DLayer{}
 	case 7:
 		return &FlattenLayer{}
+	case 8:
+		return &LSTMLayer{}
 	default:
 		return nil
 	}
@@ -164,6 +166,8 @@ func LayerToIndex(layer Layer) int {
 		return 6
 	case *FlattenLayer:
 		return 7
+	case *LSTMLayer:
+		return 8
 	default:
 		return -1
 	}
