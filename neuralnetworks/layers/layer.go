@@ -39,8 +39,13 @@ type OutputCache struct {
 }
 
 type LSTMCache struct {
-	HiddenStates []*mat.Dense
-	CellStates   []*mat.Dense
+	Inputs           []*mat.Dense
+	HiddenStates     []*mat.Dense
+	CellStates       []*mat.Dense
+	ForgetOutputs    []*mat.Dense
+	InputOutputs     []*mat.Dense
+	CandidateOutputs []*mat.Dense
+	OutputOutputs    []*mat.Dense
 }
 
 type ShiftType interface {
@@ -94,7 +99,28 @@ func (k *KernelShift) Combine(k2 ShiftType) ShiftType {
 }
 
 type LSTMShift struct {
-	gateShifts []WeightShift
+	forgetShift    ShiftType
+	inputShift     ShiftType
+	candidateShift ShiftType
+	outputShift    ShiftType
+}
+
+func (l *LSTMShift) Apply(layer Layer, scale float64) {
+	lstmLayer := layer.(*LSTMLayer)
+	l.forgetShift.Apply(&lstmLayer.forgetGate, scale)
+	l.inputShift.Apply(&lstmLayer.inputGate, scale)
+	l.candidateShift.Apply(&lstmLayer.candidateGate, scale)
+	l.outputShift.Apply(&lstmLayer.outputGate, scale)
+}
+
+func (l *LSTMShift) Combine(l2 ShiftType) ShiftType {
+	lstm2 := l2.(*LSTMShift)
+	l.forgetShift = l.forgetShift.Combine(lstm2.forgetShift)
+	l.inputShift = l.inputShift.Combine(lstm2.inputShift)
+	l.candidateShift = l.candidateShift.Combine(lstm2.candidateShift)
+	l.outputShift = l.outputShift.Combine(lstm2.outputShift)
+
+	return l
 }
 
 func IndexToLayer(index int) Layer {

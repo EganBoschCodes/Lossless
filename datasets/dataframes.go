@@ -487,21 +487,26 @@ func (frame *DataFrame) ToDataset(inputSlice string, outputSlice string) []DataP
 	return dataset
 }
 
-func (frame *DataFrame) ToSequentialDataset(inputSlice string, outputSlice string) []DataPoint {
+func (frame *DataFrame) ToSequentialDataset(inputSlice string, outputSlice string, intervalLength int) []DataPoint {
 	isInput, isOutput := utils.ParseSlice(inputSlice), utils.ParseSlice(outputSlice)
 
 	dataset := make([]DataPoint, len(frame.values))
-	for i := range frame.values[:len(frame.values)-1] {
-		row, nextRow := frame.values[i], frame.values[i+1]
+	for i := range frame.values[:len(frame.values)-intervalLength-1] {
+		nextRow := frame.values[i+1]
 		input, output := make([]float64, 0), make([]float64, 0)
-		for col := range row {
-			if isInput(col) {
-				input = row[col].MergeInto(input)
+		for _, row := range frame.values[i : i+intervalLength] {
+			for col := range row {
+				if isInput(col) {
+					input = row[col].MergeInto(input)
+				}
 			}
+		}
+		for col := range nextRow {
 			if isOutput(col) {
 				output = nextRow[col].MergeInto(output)
 			}
 		}
+
 		dataset[i] = DataPoint{Input: input, Output: output}
 	}
 

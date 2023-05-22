@@ -14,7 +14,7 @@ import (
 )
 
 // The baseline network type, this can be used for generic MLPs and CNNs.
-type Perceptron struct {
+type Sequential struct {
 	Layers       []layers.Layer
 	BatchSize    int
 	LearningRate float64
@@ -22,9 +22,11 @@ type Perceptron struct {
 	numInputs int
 }
 
-// Takes in the number of inputs this network will accept, as well as a
-// list of the layers constructing the network.
-func (network *Perceptron) Initialize(numInputs int, ls ...layers.Layer) {
+/*
+Takes in the number of inputs this network will accept, as well as a
+list of the layers constructing the network.
+*/
+func (network *Sequential) Initialize(numInputs int, ls ...layers.Layer) {
 	network.numInputs = numInputs
 
 	// Initialize all of the layers with the proper sizing.
@@ -43,8 +45,10 @@ func (network *Perceptron) Initialize(numInputs int, ls ...layers.Layer) {
 	}
 }
 
-// Takes in a single input and passes it through the network.
-func (network *Perceptron) Evaluate(input []float64) []float64 {
+/*
+Takes in a single input and passes it through the network.
+*/
+func (network *Sequential) Evaluate(input []float64) []float64 {
 	// Convert slice into matrix
 	var inputMat mat.Matrix
 	inputMat = mat.NewDense(len(input), 1, input)
@@ -59,14 +63,11 @@ func (network *Perceptron) Evaluate(input []float64) []float64 {
 }
 
 /*
-	learn (input []float64, target []float64, channel chan []mat.Matrix):
-	---------------------------------------------------------------------
-	Takes in an input, a target value, then calculates the weight shifts for all layers
-	based on said input and target, and then passes the list of per-layer weight shifts
-	to the channel so that we can add it to the batch's shift.
+Takes in an input, a target value, then calculates the weight shifts for all layers
+based on said input and target, and then passes the list of per-layer weight shifts
+to the channel so that we can add it to the batch's shift.
 */
-
-func (network *Perceptron) learn(input []float64, target []float64, channel chan []layers.ShiftType) {
+func (network *Sequential) learn(input []float64, target []float64, channel chan []layers.ShiftType) {
 	// Done very similarly to Evaluate, but we just cache the inputs basically so we can use them to do backprop.
 	caches := make([]layers.CacheType, 0)
 
@@ -101,15 +102,12 @@ func (network *Perceptron) learn(input []float64, target []float64, channel chan
 }
 
 /*
-	getLoss(datapoint datasets.DataPoint, c chan float64)
-	---------------------------------------------------------------------
-	Mostly used just as a way to check if I know how to use channels, this
-	helps me compare the loss across the dataset before and after I train it.
-	This one just gets the loss of one datapoint, then passes it to the channel
-	to be summed up.
+Mostly used just as a way to check if I know how to use channels, this
+helps me compare the loss across the dataset before and after I train it.
+This one just gets the loss of one datapoint, then passes it to the channel
+to be summed up.
 */
-
-func (network *Perceptron) getLoss(datapoint datasets.DataPoint, lossChannel chan float64, correctChannel chan bool) {
+func (network *Sequential) getLoss(datapoint datasets.DataPoint, lossChannel chan float64, correctChannel chan bool) {
 	input, target := datapoint.Input, datapoint.Output
 	output := network.Evaluate(input)
 
@@ -125,13 +123,10 @@ func (network *Perceptron) getLoss(datapoint datasets.DataPoint, lossChannel cha
 }
 
 /*
-	getTotalLoss(dataset []datasets.DataPoint) float64
-	---------------------------------------------------------------------
-	Like mentioned above, this takes the loss of the entire dataset for
-	comparison.
+Like mentioned above, this takes the loss of the entire dataset for
+comparison.
 */
-
-func (network *Perceptron) getTotalLoss(dataset []datasets.DataPoint) (float64, int) {
+func (network *Sequential) getTotalLoss(dataset []datasets.DataPoint) (float64, int) {
 	loss := 0.0
 	correctGuesses := 0
 
@@ -157,11 +152,11 @@ func (network *Perceptron) getTotalLoss(dataset []datasets.DataPoint) (float64, 
 }
 
 // Takes in a dataset and prints to Standard Output the loss and accuracy across the dataset.
-func (network *Perceptron) TestOnAndLog(dataset []datasets.DataPoint) {
+func (network *Sequential) TestOnAndLog(dataset []datasets.DataPoint) {
 	network.testOnAndLogWithPrefix(dataset, "")
 }
 
-func (network *Perceptron) testOnAndLogWithPrefix(dataset []datasets.DataPoint, prefix string) {
+func (network *Sequential) testOnAndLogWithPrefix(dataset []datasets.DataPoint, prefix string) {
 	loss, correctGuesses := network.getTotalLoss(dataset)
 	fmt.Printf("\n%sLoss: %.3f\n", prefix, loss)
 	correctPercentage := float64(correctGuesses) / float64(len(dataset)) * 100
@@ -171,7 +166,7 @@ func (network *Perceptron) testOnAndLogWithPrefix(dataset []datasets.DataPoint, 
 // Iterates across all the layers and gets a zero-matrix in the shape of
 // the weights of each layer. We use this as a baseline to add the shifts
 // of each datapoint from the batch into.
-func (network *Perceptron) getEmptyShift() []layers.ShiftType {
+func (network *Sequential) getEmptyShift() []layers.ShiftType {
 	shifts := make([]layers.ShiftType, len(network.Layers))
 	for i := range network.Layers {
 		shifts[i] = &layers.NilShift{}
@@ -181,7 +176,7 @@ func (network *Perceptron) getEmptyShift() []layers.ShiftType {
 
 // The main functionality! Accepts a training dataset, a validation dataset,
 // and how long you wish to train for.
-func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []datasets.DataPoint, timespan time.Duration) {
+func (network *Sequential) Train(dataset []datasets.DataPoint, testingData []datasets.DataPoint, timespan time.Duration) {
 	// Get a baseline
 	network.testOnAndLogWithPrefix(testingData, "Beginning ")
 
@@ -246,7 +241,7 @@ func (network *Perceptron) Train(dataset []datasets.DataPoint, testingData []dat
 // your network guesses wrong on, cause sometimes it gets things wrong it
 // shouldn't, and sometimes you cannot believe someone wrote a 4 like that
 // (I'm looking at you, random MNIST contributor).
-func (network *Perceptron) GetErrors(dataset []datasets.DataPoint) []datasets.DataPoint {
+func (network *Sequential) GetErrors(dataset []datasets.DataPoint) []datasets.DataPoint {
 	errors := make([]datasets.DataPoint, 0)
 	for _, datapoint := range dataset {
 		wasCorrect := utils.GetMaxIndex(network.Evaluate(datapoint.Input)) == datasets.FromOneHot(datapoint.Output)
@@ -261,7 +256,7 @@ func (network *Perceptron) GetErrors(dataset []datasets.DataPoint) []datasets.Da
 // Compresses all the uniquely identifying information in your network
 // (all the weights, and the layer structure) into a long array of bytes,
 // that can be saved directly to a .lsls file.
-func (network *Perceptron) ToBytes() []byte {
+func (network *Sequential) ToBytes() []byte {
 	bytes := save.ConstantsToBytes(network.numInputs)
 	for _, layer := range network.Layers {
 		layerBytes := layer.ToBytes()
@@ -273,7 +268,7 @@ func (network *Perceptron) ToBytes() []byte {
 
 // Essentially the reverse of ToBytes(), this takes the byte array that
 // was put into .lsls file and rebuilds it into the network that was saved.
-func (network *Perceptron) FromBytes(bytes []byte) {
+func (network *Sequential) FromBytes(bytes []byte) {
 	network.numInputs = save.ConstantsFromBytes(bytes[:4])[0]
 	network.Layers = make([]layers.Layer, 0)
 
@@ -295,8 +290,8 @@ func (network *Perceptron) FromBytes(bytes []byte) {
 	}
 }
 
-// Saves your Perceptron into a .lsls file, with the path [Project Directory]/{dir}/{name}.lsls.
-func (network *Perceptron) Save(dir string, name string) {
+// Saves your Sequential into a .lsls file, with the path [Project Directory]/{dir}/{name}.lsls.
+func (network *Sequential) Save(dir string, name string) {
 	if len(dir) > 0 {
 		save.WriteBytesToFile(fmt.Sprintf("%s/%s.lsls", dir, name), network.ToBytes())
 	} else {
@@ -306,7 +301,7 @@ func (network *Perceptron) Save(dir string, name string) {
 
 // Opens the .lsls file at path [Project Directory]/{dir}/{name}.lsls and populates the network
 // with that saved information.
-func (network *Perceptron) Open(dir string, name string) {
+func (network *Sequential) Open(dir string, name string) {
 	var rawBytes []byte
 	if len(dir) > 0 {
 		rawBytes = save.ReadBytesFromFile(fmt.Sprintf("%s/%s.lsls", dir, name))
@@ -321,7 +316,7 @@ func (network *Perceptron) Open(dir string, name string) {
 // did it. Anyways, this will write all the relevant info to recreate the
 // network in a human "readable" form (as if a matrix with dimensions in the
 // hundreds can ever be human readable).
-func (network *Perceptron) PrettyPrint(dir string, name string) {
+func (network *Sequential) PrettyPrint(dir string, name string) {
 	outputString := ""
 	for i, layer := range network.Layers {
 		outputString += layer.PrettyPrint()
