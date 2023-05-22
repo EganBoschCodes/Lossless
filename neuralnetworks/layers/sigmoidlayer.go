@@ -27,13 +27,13 @@ func sigmoid(x float64) float64 {
 	return 1 / (1 + math.Exp(-x))
 }
 
-func (layer *SigmoidLayer) Pass(input mat.Matrix) mat.Matrix {
+func (layer *SigmoidLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
 	input.(*mat.Dense).Apply(func(i int, j int, v float64) float64 { return sigmoid(v) }, input)
-	return input
+	return input, &OutputCache{Output: input.(*mat.Dense)}
 }
 
-func (layer *SigmoidLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
-	outputSlice := utils.GetSlice(outputs)
+func (layer *SigmoidLayer) Back(cache CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+	outputSlice := utils.GetSlice(cache.(*OutputCache).Output)
 	_, c := forwardGradients.Dims()
 	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
 		val := outputSlice[i*c+j]

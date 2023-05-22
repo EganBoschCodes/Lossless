@@ -62,21 +62,21 @@ func (layer *LSTMLayer) Pass(input mat.Matrix) mat.Matrix {
 		concatInput := utils.FromSlice(append(utils.GetSlice(hiddenState), inputSlice[i:i+layer.numInputs]...))
 
 		// Forget Gate
-		forgetOutput := layer.forgetGate.Pass(concatInput).(*mat.Dense)
-		forgetOutput.Apply(func(i int, j int, v float64) float64 {
+		forgetOutput, _ := layer.forgetGate.Pass(concatInput)
+		forgetOutput.(*mat.Dense).Apply(func(i int, j int, v float64) float64 {
 			return sigmoid(v)
 		}, forgetOutput)
 
 		cellState.MulElem(forgetOutput, cellState)
 
 		// Input and Candidate Gate
-		inputOutput := layer.forgetGate.Pass(concatInput).(*mat.Dense)
-		inputOutput.Apply(func(i int, j int, v float64) float64 {
+		inputOutput, _ := layer.forgetGate.Pass(concatInput)
+		inputOutput.(*mat.Dense).Apply(func(i int, j int, v float64) float64 {
 			return sigmoid(v)
 		}, inputOutput)
 
-		candidateOutput := layer.forgetGate.Pass(concatInput).(*mat.Dense)
-		candidateOutput.Apply(func(i int, j int, v float64) float64 {
+		candidateOutput, _ := layer.forgetGate.Pass(concatInput)
+		candidateOutput.(*mat.Dense).Apply(func(i int, j int, v float64) float64 {
 			return math.Tanh(v)
 		}, candidateOutput)
 
@@ -86,8 +86,8 @@ func (layer *LSTMLayer) Pass(input mat.Matrix) mat.Matrix {
 		cellState.Add(newMemories, cellState)
 
 		// Output Gate
-		outputOutput := layer.forgetGate.Pass(concatInput).(*mat.Dense)
-		outputOutput.Apply(func(i int, j int, v float64) float64 {
+		outputOutput, _ := layer.forgetGate.Pass(concatInput)
+		outputOutput.(*mat.Dense).Apply(func(i int, j int, v float64) float64 {
 			return sigmoid(v)
 		}, outputOutput)
 
@@ -105,3 +105,20 @@ func (layer *LSTMLayer) Pass(input mat.Matrix) mat.Matrix {
 	}
 	return hiddenState
 }
+
+/*func (layer *LSTMLayer) Back(combinedInput mat.Matrix, _ mat.Matrix, forwardGradients mat.Matrix) (shift ShiftType, backpass mat.Matrix) {
+	var startingGradient *mat.Dense
+	if layer.OutputSequence {
+		gradientSlice := utils.GetSlice(forwardGradients)
+		startingGradient = utils.FromSlice(gradientSlice[len(gradientSlice)-layer.Outputs:])
+	} else {
+		startingGradient = forwardGradients.(*mat.Dense)
+	}
+
+	inputSlice := utils.GetSlice(combinedInput)
+	inputs = make([]*mat.Dense, layer.IntervalSize)
+	for i := 0; i < len(inputSlice); i += layer.numInputs {
+
+	}
+
+}*/

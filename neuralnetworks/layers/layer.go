@@ -14,8 +14,8 @@ import (
 
 type Layer interface {
 	Initialize(int)
-	Pass(mat.Matrix) mat.Matrix
-	Back(mat.Matrix, mat.Matrix, mat.Matrix) (ShiftType, mat.Matrix)
+	Pass(mat.Matrix) (mat.Matrix, CacheType)
+	Back(CacheType, mat.Matrix) (ShiftType, mat.Matrix)
 	NumOutputs() int
 
 	ToBytes() []byte
@@ -26,6 +26,21 @@ type Layer interface {
 type Shape struct {
 	Rows int
 	Cols int
+}
+
+type CacheType interface{}
+
+type InputCache struct {
+	Input *mat.Dense
+}
+
+type OutputCache struct {
+	Output *mat.Dense
+}
+
+type LSTMCache struct {
+	HiddenStates []*mat.Dense
+	CellStates   []*mat.Dense
 }
 
 type ShiftType interface {
@@ -76,6 +91,10 @@ func (k *KernelShift) Combine(k2 ShiftType) ShiftType {
 		k.shifts[i].(*mat.Dense).Add(k.shifts[i], k2.(*KernelShift).shifts[i])
 	}
 	return k
+}
+
+type LSTMShift struct {
+	gateShifts []WeightShift
 }
 
 func IndexToLayer(index int) Layer {

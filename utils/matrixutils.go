@@ -11,7 +11,7 @@ func GetSlice(m mat.Matrix) []float64 {
 	return m.(*mat.Dense).RawMatrix().Data
 }
 
-func FromSlice(f []float64) mat.Matrix {
+func FromSlice(f []float64) *mat.Dense {
 	return mat.NewDense(len(f), 1, f)
 }
 

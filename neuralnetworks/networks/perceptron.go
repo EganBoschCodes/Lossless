@@ -51,11 +51,11 @@ func (network *Perceptron) Evaluate(input []float64) []float64 {
 
 	// Pass the input through all the layers
 	for _, layer := range network.Layers {
-		inputMat = layer.Pass(inputMat)
+		inputMat, _ = layer.Pass(inputMat)
 	}
 
 	// Reconvert from matrix back to the underlying slice
-	return inputMat.(*mat.Dense).RawMatrix().Data
+	return utils.GetSlice(inputMat)
 }
 
 /*
@@ -68,21 +68,22 @@ func (network *Perceptron) Evaluate(input []float64) []float64 {
 
 func (network *Perceptron) learn(input []float64, target []float64, channel chan []layers.ShiftType) {
 	// Done very similarly to Evaluate, but we just cache the inputs basically so we can use them to do backprop.
-	inputCache := make([]mat.Matrix, 0)
+	caches := make([]layers.CacheType, 0)
 
-	var inputMat mat.Matrix
-	inputMat = mat.NewDense(len(input), 1, input)
+	var nextInput mat.Matrix
+	nextInput = mat.NewDense(len(input), 1, input)
 	for _, layer := range network.Layers {
-		inputCache = append(inputCache, inputMat)
-		inputMat = layer.Pass(inputMat)
+		layerOutput, layerCache := layer.Pass(nextInput)
+
+		caches = append(caches, layerCache)
+		nextInput = layerOutput
 	}
-	inputCache = append(inputCache, inputMat)
 
 	// Now we start the gradient that we're gonna be passing back
 	gradient := make([]float64, len(target))
 	for i := range target {
 		// Basic cross-entropy loss gradient.
-		gradient[i] = (target[i] - inputMat.(*mat.Dense).At(i, 0))
+		gradient[i] = (target[i] - nextInput.At(i, 0))
 	}
 	var gradientMat mat.Matrix
 	gradientMat = mat.NewDense(len(gradient), 1, gradient)
@@ -91,7 +92,7 @@ func (network *Perceptron) learn(input []float64, target []float64, channel chan
 	shifts := make([]layers.ShiftType, len(network.Layers))
 	for i := len(network.Layers) - 1; i >= 0; i-- {
 		layer := network.Layers[i]
-		shift, gradientTemp := layer.Back(inputCache[i], inputCache[i+1], gradientMat)
+		shift, gradientTemp := layer.Back(caches[i], gradientMat)
 		gradientMat = gradientTemp
 		shifts[i] = shift
 	}

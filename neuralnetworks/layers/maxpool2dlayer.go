@@ -29,11 +29,13 @@ func (layer *MaxPool2DLayer) Initialize(n_inputs int) {
 	layer.n_inputs = n_inputs
 }
 
-func (layer *MaxPool2DLayer) Pass(input mat.Matrix) mat.Matrix {
-	return utils.MaxPool(input, layer.PoolShape.Rows, layer.PoolShape.Cols)
+func (layer *MaxPool2DLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
+	return utils.MaxPool(input, layer.PoolShape.Rows, layer.PoolShape.Cols), &InputCache{Input: input.(*mat.Dense)}
 }
 
-func (layer *MaxPool2DLayer) Back(inputs mat.Matrix, _ mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+func (layer *MaxPool2DLayer) Back(cache CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+	inputs := cache.(*InputCache).Input
+
 	grownGradients := utils.UnMaxPool(forwardGradients, layer.PoolShape.Rows, layer.PoolShape.Cols)
 	gradientMap := utils.MaxPoolMap(inputs, layer.PoolShape.Rows, layer.PoolShape.Cols)
 

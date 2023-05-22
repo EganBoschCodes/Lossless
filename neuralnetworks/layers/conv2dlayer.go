@@ -71,7 +71,7 @@ func (layer *Conv2DLayer) Initialize(numInputs int) {
 
 }
 
-func (layer *Conv2DLayer) Pass(input mat.Matrix) mat.Matrix {
+func (layer *Conv2DLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
 	passingSlice := make([]float64, 0)
 	inputSlice := input.(*mat.Dense).RawMatrix().Data
 
@@ -83,12 +83,12 @@ func (layer *Conv2DLayer) Pass(input mat.Matrix) mat.Matrix {
 		passingSlice = append(passingSlice, convolution.(*mat.Dense).RawMatrix().Data...)
 	}
 
-	return mat.NewDense(layer.NumKernels*layer.outputShape.Rows, layer.outputShape.Cols, passingSlice)
+	return mat.NewDense(layer.NumKernels*layer.outputShape.Rows, layer.outputShape.Cols, passingSlice), &InputCache{Input: input.(*mat.Dense)}
 }
 
-func (layer *Conv2DLayer) Back(inputs mat.Matrix, _ mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+func (layer *Conv2DLayer) Back(cache CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
 	allShifts := make([]mat.Matrix, layer.NumKernels)
-	inputSlice := utils.GetSlice(inputs)
+	inputSlice := utils.GetSlice(cache.(*InputCache).Input)
 	gradientSlice := utils.GetSlice(forwardGradients)
 
 	// Calculate the shifts for the local kernels

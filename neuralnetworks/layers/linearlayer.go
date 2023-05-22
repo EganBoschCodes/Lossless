@@ -48,17 +48,19 @@ func (layer *LinearLayer) Initialize(numInputs int) {
 	layer.initialized = true
 }
 
-func (layer *LinearLayer) Pass(input mat.Matrix) mat.Matrix {
+func (layer *LinearLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
 	// Multiply by weights
 	output := mat.NewDense(layer.Outputs, 1, nil)
 	output.Mul(layer.weights, input)
 
 	// Add biases
 	output.Add(output, layer.biases)
-	return output
+	return output, &InputCache{Input: input.(*mat.Dense)}
 }
 
-func (layer *LinearLayer) Back(inputs mat.Matrix, _ mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+func (layer *LinearLayer) Back(cache CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+	inputs := cache.(*InputCache).Input
+
 	inputSize, _ := inputs.Dims()
 	gradSize, _ := forwardGradients.Dims()
 
