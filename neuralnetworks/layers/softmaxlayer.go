@@ -17,7 +17,7 @@ func (layer *SoftmaxLayer) Initialize(n_inputs int) {
 	layer.n_inputs = n_inputs
 }
 
-func (layer *SoftmaxLayer) Pass(input mat.Matrix) mat.Matrix {
+func (layer *SoftmaxLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
 	inputSlice := input.(*mat.Dense).RawMatrix().Data
 	maxVal := utils.Reduce(inputSlice, math.Max)
 
@@ -26,11 +26,13 @@ func (layer *SoftmaxLayer) Pass(input mat.Matrix) mat.Matrix {
 	expSlice = utils.Map(expSlice, func(a float64) float64 { return a / sumExps })
 
 	r, c := input.Dims()
+	output := mat.NewDense(r, c, expSlice)
 
-	return mat.NewDense(r, c, expSlice)
+	return output, &OutputCache{Output: output}
 }
 
-func (layer *SoftmaxLayer) Back(inputs mat.Matrix, outputs mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+func (layer *SoftmaxLayer) Back(cache CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+	outputs := cache.(*OutputCache).Output
 	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
 		val := outputs.At(i, j)
 		return v * val * (1 - val)

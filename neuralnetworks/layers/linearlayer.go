@@ -25,8 +25,7 @@ func (layer *LinearLayer) Initialize(numInputs int) {
 	}
 
 	if layer.Outputs == 0 {
-		fmt.Println("You must specify how many Outputs a LinearLayer has!")
-		panic(1)
+		panic("You must specify how many Outputs a LinearLayer has!")
 	}
 
 	// Use Xavier Initialization on the weights
@@ -45,17 +44,19 @@ func (layer *LinearLayer) Initialize(numInputs int) {
 	layer.biases = mat.NewDense(layer.Outputs, 1, initialBiases)
 }
 
-func (layer *LinearLayer) Pass(input mat.Matrix) mat.Matrix {
+func (layer *LinearLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
 	// Multiply by weights
 	output := mat.NewDense(layer.Outputs, 1, nil)
 	output.Mul(layer.weights, input)
 
 	// Add biases
 	output.Add(output, layer.biases)
-	return output
+	return output, &InputCache{Input: input.(*mat.Dense)}
 }
 
-func (layer *LinearLayer) Back(inputs mat.Matrix, _ mat.Matrix, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+func (layer *LinearLayer) Back(cache CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+	inputs := cache.(*InputCache).Input
+
 	inputSize, _ := inputs.Dims()
 	gradSize, _ := forwardGradients.Dims()
 
