@@ -295,3 +295,10 @@ func (l *LSTMShift) Combine(l2 ShiftType) ShiftType {
 func (l *LSTMShift) NumMatrices() int {
 	return 8
 }
+
+func (l *LSTMShift) Scale(f float64) {
+	l.forgetShift.Scale(f)
+	l.inputShift.Scale(f)
+	l.candidateShift.Scale(f)
+	l.outputShift.Scale(f)
+}

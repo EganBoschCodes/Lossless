@@ -124,6 +124,11 @@ func (w *WeightShift) Combine(w2 ShiftType) ShiftType {
 	return w
 }
 
+func (w *WeightShift) Scale(f float64) {
+	w.weightShift.Scale(f, w.weightShift)
+	w.biasShift.Scale(f, w.biasShift)
+}
+
 func (w *WeightShift) NumMatrices() int {
 	return 2
 }

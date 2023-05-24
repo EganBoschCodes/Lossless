@@ -187,3 +187,9 @@ func (k *KernelShift) Combine(k2 ShiftType) ShiftType {
 func (k *KernelShift) NumMatrices() int {
 	return len(k.shifts)
 }
+
+func (k *KernelShift) Scale(f float64) {
+	for i := range k.shifts {
+		k.shifts[i].Scale(f, k.shifts[i])
+	}
+}

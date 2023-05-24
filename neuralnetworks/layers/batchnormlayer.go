@@ -171,3 +171,8 @@ func (b *BatchNormShift) Combine(b2 ShiftType) ShiftType {
 func (b *BatchNormShift) NumMatrices() int {
 	return 2
 }
+
+func (b *BatchNormShift) Scale(f float64) {
+	b.meanShift.Scale(f, b.meanShift)
+	b.stddevShift.Scale(f, b.stddevShift)
+}

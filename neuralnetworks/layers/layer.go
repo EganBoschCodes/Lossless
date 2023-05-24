@@ -68,6 +68,8 @@ specific shift types are defined in their own files.
 type ShiftType interface {
 	Apply(Layer, optimizers.Optimizer, float64)
 	Combine(ShiftType) ShiftType
+
+	Scale(float64)
 	NumMatrices() int
 }
 
@@ -78,6 +80,7 @@ func (n *NilShift) Combine(other ShiftType) ShiftType {
 	return other
 }
 func (n *NilShift) NumMatrices() int { return 0 }
+func (n *NilShift) Scale(f float64)  {}
 
 /*
 This allows for mapping between layer types and ints

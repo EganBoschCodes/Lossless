@@ -227,6 +227,7 @@ func (network *Sequential) Train(dataset []datasets.DataPoint, testingData []dat
 			network.Optimizer.Initialize(numShifts)
 		}
 		for i, shift := range shifts {
+			shift.Scale(1.0 / float64(network.BatchSize))
 			shift.Apply(network.Layers[i], network.Optimizer, network.LearningRate)
 		}
 
