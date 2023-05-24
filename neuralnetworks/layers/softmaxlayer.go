@@ -17,8 +17,8 @@ func (layer *SoftmaxLayer) Initialize(n_inputs int) {
 	layer.n_inputs = n_inputs
 }
 
-func (layer *SoftmaxLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
-	inputSlice := input.(*mat.Dense).RawMatrix().Data
+func (layer *SoftmaxLayer) Pass(input *mat.Dense) (*mat.Dense, CacheType) {
+	inputSlice := input.RawMatrix().Data
 	maxVal := utils.Reduce(inputSlice, math.Max)
 
 	expSlice := utils.Map(inputSlice, func(a float64) float64 { return math.Exp(a - maxVal) })
@@ -31,17 +31,15 @@ func (layer *SoftmaxLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
 	return output, &OutputCache{Output: output}
 }
 
-func (layer *SoftmaxLayer) Back(cache CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+func (layer *SoftmaxLayer) Back(cache CacheType, forwardGradients *mat.Dense) (ShiftType, *mat.Dense) {
 	outputs := cache.(*OutputCache).Output
-	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
+	forwardGradients.Apply(func(i, j int, v float64) float64 {
 		val := outputs.At(i, j)
 		return v * val * (1 - val)
 	}, forwardGradients)
 
 	return &NilShift{}, forwardGradients
 }
-
-func (layer *SoftmaxLayer) GetShape() mat.Matrix { return nil }
 
 func (layer *SoftmaxLayer) NumOutputs() int {
 	return layer.n_inputs

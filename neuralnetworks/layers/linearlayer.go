@@ -13,8 +13,8 @@ import (
 type LinearLayer struct {
 	Outputs int
 
-	weights  mat.Matrix
-	biases   mat.Matrix
+	weights  *mat.Dense
+	biases   *mat.Dense
 	n_inputs int
 }
 
@@ -44,17 +44,17 @@ func (layer *LinearLayer) Initialize(numInputs int) {
 	layer.biases = mat.NewDense(layer.Outputs, 1, initialBiases)
 }
 
-func (layer *LinearLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
+func (layer *LinearLayer) Pass(input *mat.Dense) (*mat.Dense, CacheType) {
 	// Multiply by weights
 	output := mat.NewDense(layer.Outputs, 1, nil)
 	output.Mul(layer.weights, input)
 
 	// Add biases
 	output.Add(output, layer.biases)
-	return output, &InputCache{Input: input.(*mat.Dense)}
+	return output, &InputCache{Input: input}
 }
 
-func (layer *LinearLayer) Back(cache CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+func (layer *LinearLayer) Back(cache CacheType, forwardGradients *mat.Dense) (ShiftType, *mat.Dense) {
 	inputs := cache.(*InputCache).Input
 
 	inputSize, _ := inputs.Dims()

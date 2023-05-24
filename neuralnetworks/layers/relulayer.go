@@ -17,15 +17,15 @@ func (layer *ReluLayer) Initialize(n_inputs int) {
 	layer.n_inputs = n_inputs
 }
 
-func (layer *ReluLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
+func (layer *ReluLayer) Pass(input *mat.Dense) (*mat.Dense, CacheType) {
 	r, c := input.Dims()
-	return mat.NewDense(r, c, utils.Map(utils.GetSlice(input), func(a float64) float64 { return math.Max(a, 0) })), &InputCache{Input: input.(*mat.Dense)}
+	return mat.NewDense(r, c, utils.Map(utils.GetSlice(input), func(a float64) float64 { return math.Max(a, 0) })), &InputCache{Input: input}
 }
 
-func (layer *ReluLayer) Back(cache CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+func (layer *ReluLayer) Back(cache CacheType, forwardGradients *mat.Dense) (ShiftType, *mat.Dense) {
 	inputSlice := utils.GetSlice(cache.(*InputCache).Input)
 	_, c := forwardGradients.Dims()
-	forwardGradients.(*mat.Dense).Apply(func(i, j int, v float64) float64 {
+	forwardGradients.Apply(func(i, j int, v float64) float64 {
 		val := inputSlice[i*c+j]
 		if val <= 0.0 {
 			return 0.1 * v

@@ -47,7 +47,7 @@ func convolveInner(data mat.Matrix, kernel mat.Matrix, output mat.Matrix, rstart
 	notifier <- 1
 }
 
-func ConvolveNoPadding(data mat.Matrix, kernel mat.Matrix) mat.Matrix {
+func ConvolveNoPadding(data mat.Matrix, kernel mat.Matrix) *mat.Dense {
 	dr, dc := data.Dims()
 	kr, kc := kernel.Dims()
 
@@ -131,7 +131,7 @@ func ConvolveWithPadding(data mat.Matrix, kernel mat.Matrix) mat.Matrix {
 	instead of reducing them.
 */
 
-func MaxPool(data mat.Matrix, width int, height int) mat.Matrix {
+func MaxPool(data mat.Matrix, width int, height int) *mat.Dense {
 	dr, dc := data.Dims()
 
 	if dr%width != 0 || dc%height != 0 {
@@ -181,11 +181,15 @@ func MaxPoolMap(data mat.Matrix, width int, height int) mat.Matrix {
 			for i := 0; i < width; i++ {
 				for j := 0; j < height; j++ {
 					output.Set(r+i, c+j, 0.1)
-					if data.At(r+i, c+j) > max {
+					if data.At(r+i, c+j) >= max {
 						max = data.At(r+i, c+j)
 						maxr, maxc = i, j
 					}
 				}
+			}
+
+			if r+maxr < 0 || c+maxc < 0 {
+				panic("\n\nMaxPoolMap is recieving NaN input!")
 			}
 			output.Set(r+maxr, c+maxc, 1)
 		}

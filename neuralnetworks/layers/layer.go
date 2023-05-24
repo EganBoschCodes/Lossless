@@ -9,13 +9,13 @@ import (
 	-----------------------------------------------------------
 	Initialize (numInputs int, numOutputs int): Tells the layer how many inputs and how many outputs to expect.
 	Pass (input mat.Vector) (output mat.Vector): Passes the input through the layer to get an output.
-	Back (forwardGradients mat.Vector) (shifts mat.Matrix, backwardsPass mat.Vector): Takes the partial derivatives from the layers in front, calculates the gradient for itself, and passes it back to the last layer.
+	Back (forwardGradients mat.Vector) (shifts *mat.Dense, backwardsPass mat.Vector): Takes the partial derivatives from the layers in front, calculates the gradient for itself, and passes it back to the last layer.
 */
 
 type Layer interface {
 	Initialize(int)
-	Pass(mat.Matrix) (mat.Matrix, CacheType)
-	Back(CacheType, mat.Matrix) (ShiftType, mat.Matrix)
+	Pass(*mat.Dense) (*mat.Dense, CacheType)
+	Back(CacheType, *mat.Dense) (ShiftType, *mat.Dense)
 	NumOutputs() int
 
 	ToBytes() []byte
@@ -36,6 +36,10 @@ type InputCache struct {
 
 type OutputCache struct {
 	Output *mat.Dense
+}
+
+type BatchNormCache struct {
+	Normed *mat.Dense
 }
 
 type LSTMCache struct {
@@ -61,40 +65,65 @@ func (n *NilShift) Combine(other ShiftType) ShiftType {
 }
 
 type WeightShift struct {
-	weightShift mat.Matrix
-	biasShift   mat.Matrix
+	weightShift *mat.Dense
+	biasShift   *mat.Dense
 }
 
 func (w *WeightShift) Apply(layer Layer, scale float64) {
-	w.weightShift.(*mat.Dense).Scale(scale, w.weightShift)
-	w.biasShift.(*mat.Dense).Scale(scale, w.biasShift)
+	w.weightShift.Scale(scale, w.weightShift)
+	w.biasShift.Scale(scale, w.biasShift)
 
-	layer.(*LinearLayer).weights.(*mat.Dense).Add(layer.(*LinearLayer).weights, w.weightShift)
-	layer.(*LinearLayer).biases.(*mat.Dense).Add(layer.(*LinearLayer).biases, w.biasShift)
+	layer.(*LinearLayer).weights.Add(layer.(*LinearLayer).weights, w.weightShift)
+	layer.(*LinearLayer).biases.Add(layer.(*LinearLayer).biases, w.biasShift)
 }
 
 func (w *WeightShift) Combine(w2 ShiftType) ShiftType {
-	w.weightShift.(*mat.Dense).Add(w.weightShift, w2.(*WeightShift).weightShift)
-	w.biasShift.(*mat.Dense).Add(w.biasShift, w2.(*WeightShift).biasShift)
+	w.weightShift.Add(w.weightShift, w2.(*WeightShift).weightShift)
+	w.biasShift.Add(w.biasShift, w2.(*WeightShift).biasShift)
 
 	return w
 }
 
 type KernelShift struct {
-	shifts []mat.Matrix
+	shifts []*mat.Dense
 }
 
 func (k *KernelShift) Apply(layer Layer, scale float64) {
 	for i, shift := range k.shifts {
-		shift.(*mat.Dense).Scale(scale, shift)
-		layer.(*Conv2DLayer).kernels[i].(*mat.Dense).Add(layer.(*Conv2DLayer).kernels[i], shift)
+		shift.Scale(scale, shift)
+		layer.(*Conv2DLayer).kernels[i].Add(layer.(*Conv2DLayer).kernels[i], shift)
 	}
 }
 
 func (k *KernelShift) Combine(k2 ShiftType) ShiftType {
 	for i := range k.shifts {
-		k.shifts[i].(*mat.Dense).Add(k.shifts[i], k2.(*KernelShift).shifts[i])
+		k.shifts[i].Add(k.shifts[i], k2.(*KernelShift).shifts[i])
 	}
+	return k
+}
+
+type BatchNormShift struct {
+	meanShift   *mat.Dense
+	stddevShift *mat.Dense
+}
+
+func (k *BatchNormShift) Apply(rawlayer Layer, scale float64) {
+	layer := rawlayer.(*BatchnormLayer)
+	if len(layer.cache) >= layer.BatchSize {
+		layer.popCache()
+	}
+
+	k.meanShift.Scale(scale, k.meanShift)
+	layer.trainedMeans.Add(layer.trainedMeans, k.meanShift)
+
+	k.stddevShift.Scale(scale, k.stddevShift)
+	layer.trainedStddevs.Add(layer.trainedStddevs, k.stddevShift)
+}
+
+func (k *BatchNormShift) Combine(k2 ShiftType) ShiftType {
+	k.meanShift.Add(k.meanShift, k2.(*BatchNormShift).meanShift)
+	k.stddevShift.Add(k.stddevShift, k2.(*BatchNormShift).stddevShift)
+
 	return k
 }
 
@@ -143,6 +172,8 @@ func IndexToLayer(index int) Layer {
 		return &FlattenLayer{}
 	case 8:
 		return &LSTMLayer{}
+	case 9:
+		return &BatchnormLayer{}
 	default:
 		return nil
 	}
@@ -168,6 +199,8 @@ func LayerToIndex(layer Layer) int {
 		return 7
 	case *LSTMLayer:
 		return 8
+	case *BatchnormLayer:
+		return 9
 	default:
 		return -1
 	}
