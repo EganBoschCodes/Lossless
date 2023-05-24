@@ -1,11 +1,10 @@
 package optimizers
 
-import "github.com/EganBoschCodes/lossless/neuralnetworks/layers"
+import "gonum.org/v1/gonum/mat"
 
 type Optimizer interface {
-	Rescale([]layers.ShiftType) []layers.ShiftType
-}
+	Rescale(*mat.Dense) *mat.Dense
 
-const (
-	GradientDescent Optimizer = GradientDescentOptimizer{}
-)
+	Initialize(int)
+	Initialized() bool
+}

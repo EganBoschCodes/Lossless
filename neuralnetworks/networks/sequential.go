@@ -7,6 +7,7 @@ import (
 
 	"github.com/EganBoschCodes/lossless/datasets"
 	"github.com/EganBoschCodes/lossless/neuralnetworks/layers"
+	"github.com/EganBoschCodes/lossless/neuralnetworks/optimizers"
 	"github.com/EganBoschCodes/lossless/neuralnetworks/save"
 	"github.com/EganBoschCodes/lossless/utils"
 
@@ -20,6 +21,7 @@ type Sequential struct {
 	LearningRate float64
 
 	numInputs int
+	Optimizer optimizers.Optimizer
 }
 
 /*
@@ -42,6 +44,9 @@ func (network *Sequential) Initialize(numInputs int, ls ...layers.Layer) {
 	}
 	if network.LearningRate == 0 {
 		network.LearningRate = 0.05
+	}
+	if network.Optimizer == nil {
+		network.Optimizer = &optimizers.GradientDescent{}
 	}
 }
 
@@ -214,8 +219,15 @@ func (network *Sequential) Train(dataset []datasets.DataPoint, testingData []dat
 		}
 
 		// Once all shifts have been added in, apply the averaged shifts to all layers
+		if !network.Optimizer.Initialized() {
+			numShifts := 0
+			for _, shift := range shifts {
+				numShifts += shift.NumMatrices()
+			}
+			network.Optimizer.Initialize(numShifts)
+		}
 		for i, shift := range shifts {
-			shift.Apply(network.Layers[i], network.LearningRate)
+			shift.Apply(network.Layers[i], network.Optimizer, network.LearningRate)
 		}
 
 		// Just let me know how much time is left

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/EganBoschCodes/lossless/neuralnetworks/optimizers"
 	"github.com/EganBoschCodes/lossless/neuralnetworks/save"
 	"github.com/EganBoschCodes/lossless/utils"
 	"gonum.org/v1/gonum/mat"
@@ -264,4 +265,33 @@ func (layer *LSTMLayer) PrettyPrint() string {
 	ret += "\nCandidate Gate:\n" + layer.candidateGate.PrettyPrint()
 	ret += "\nOutput Gate:\n" + layer.outputGate.PrettyPrint()
 	return ret
+}
+
+type LSTMShift struct {
+	forgetShift    ShiftType
+	inputShift     ShiftType
+	candidateShift ShiftType
+	outputShift    ShiftType
+}
+
+func (l *LSTMShift) Apply(layer Layer, opt optimizers.Optimizer, scale float64) {
+	lstmLayer := layer.(*LSTMLayer)
+	l.forgetShift.Apply(&lstmLayer.forgetGate, opt, scale)
+	l.inputShift.Apply(&lstmLayer.inputGate, opt, scale)
+	l.candidateShift.Apply(&lstmLayer.candidateGate, opt, scale)
+	l.outputShift.Apply(&lstmLayer.outputGate, opt, scale)
+}
+
+func (l *LSTMShift) Combine(l2 ShiftType) ShiftType {
+	lstm2 := l2.(*LSTMShift)
+	l.forgetShift = l.forgetShift.Combine(lstm2.forgetShift)
+	l.inputShift = l.inputShift.Combine(lstm2.inputShift)
+	l.candidateShift = l.candidateShift.Combine(lstm2.candidateShift)
+	l.outputShift = l.outputShift.Combine(lstm2.outputShift)
+
+	return l
+}
+
+func (l *LSTMShift) NumMatrices() int {
+	return 8
 }

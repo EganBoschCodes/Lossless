@@ -4,12 +4,16 @@ import (
 	"fmt"
 	"math/rand"
 
+	"github.com/EganBoschCodes/lossless/neuralnetworks/optimizers"
 	"github.com/EganBoschCodes/lossless/neuralnetworks/save"
 	"github.com/EganBoschCodes/lossless/utils"
 
 	"gonum.org/v1/gonum/mat"
 )
 
+/*
+Linear (or Dense) layer type
+*/
 type LinearLayer struct {
 	Outputs int
 
@@ -94,4 +98,32 @@ func (layer *LinearLayer) FromBytes(bytes []byte) {
 func (layer *LinearLayer) PrettyPrint() string {
 	ret := fmt.Sprintf("Linear Layer\n%d Inputs -> %d Outputs\n\n", layer.n_inputs, layer.Outputs)
 	return ret + fmt.Sprintf("weights =\n%s", utils.JSify(layer.weights))
+}
+
+/*
+ShiftType used by LinearLayers
+*/
+type WeightShift struct {
+	weightShift *mat.Dense
+	biasShift   *mat.Dense
+}
+
+func (w *WeightShift) Apply(layer Layer, opt optimizers.Optimizer, scale float64) {
+	w.weightShift, w.biasShift = opt.Rescale(w.weightShift), opt.Rescale(w.biasShift)
+	w.weightShift.Scale(scale, w.weightShift)
+	w.biasShift.Scale(scale, w.biasShift)
+
+	layer.(*LinearLayer).weights.Add(layer.(*LinearLayer).weights, w.weightShift)
+	layer.(*LinearLayer).biases.Add(layer.(*LinearLayer).biases, w.biasShift)
+}
+
+func (w *WeightShift) Combine(w2 ShiftType) ShiftType {
+	w.weightShift.Add(w.weightShift, w2.(*WeightShift).weightShift)
+	w.biasShift.Add(w.biasShift, w2.(*WeightShift).biasShift)
+
+	return w
+}
+
+func (w *WeightShift) NumMatrices() int {
+	return 2
 }

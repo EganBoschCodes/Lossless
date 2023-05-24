@@ -8,6 +8,7 @@ import (
 
 	"github.com/EganBoschCodes/lossless/datasets"
 	"github.com/EganBoschCodes/lossless/neuralnetworks/layers"
+	"github.com/EganBoschCodes/lossless/neuralnetworks/optimizers"
 	"github.com/EganBoschCodes/lossless/neuralnetworks/save"
 	"github.com/EganBoschCodes/lossless/utils"
 	"gonum.org/v1/gonum/mat"
@@ -26,6 +27,8 @@ type LSTM struct {
 	numInputs    int
 	numOutputs   int
 	concatInputs int
+
+	Optimizer optimizers.Optimizer
 }
 
 func (network *LSTM) initializeGate(layers []layers.Layer, numInputs int, expectedOutputs int) {
@@ -47,6 +50,9 @@ func (network *LSTM) Initialize(numInputs int, numOutputs int, ForgetGate []laye
 	}
 	if network.LearningRate == 0 {
 		network.LearningRate = 0.05
+	}
+	if network.Optimizer == nil {
+		network.Optimizer = &optimizers.GradientDescent{}
 	}
 
 	network.ForgetGate, network.InputGate, network.CandidateGate, network.OutputGate, network.InterpretGate = ForgetGate, InputGate, CandidateGate, OutputGate, InterpretGate
@@ -317,7 +323,7 @@ func (network *LSTM) getLoss(dataset []datasets.DataPoint) float64 {
 
 func (network *LSTM) applyShiftsToGate(layers []layers.Layer, shifts []layers.ShiftType) {
 	for i, shift := range shifts {
-		shift.Apply(layers[i], network.LearningRate)
+		shift.Apply(layers[i], network.Optimizer, network.LearningRate)
 	}
 }
 
@@ -328,6 +334,25 @@ func combineShifts(current []layers.ShiftType, next []layers.ShiftType) []layers
 func (network *LSTM) applyShifts(shifts [][]layers.ShiftType) {
 	forgetGateShifts, inputGateShifts, candidateGateShifts, outputGateShifts, interpretGateShifts := shifts[0], shifts[1], shifts[2], shifts[3], shifts[4]
 
+	if !network.Optimizer.Initialized() {
+		numShifts := 0
+		for _, shift := range forgetGateShifts {
+			numShifts += shift.NumMatrices()
+		}
+		for _, shift := range inputGateShifts {
+			numShifts += shift.NumMatrices()
+		}
+		for _, shift := range candidateGateShifts {
+			numShifts += shift.NumMatrices()
+		}
+		for _, shift := range outputGateShifts {
+			numShifts += shift.NumMatrices()
+		}
+		for _, shift := range interpretGateShifts {
+			numShifts += shift.NumMatrices()
+		}
+		network.Optimizer.Initialize(numShifts)
+	}
 	network.applyShiftsToGate(network.ForgetGate, forgetGateShifts)
 	network.applyShiftsToGate(network.InputGate, inputGateShifts)
 	network.applyShiftsToGate(network.CandidateGate, candidateGateShifts)

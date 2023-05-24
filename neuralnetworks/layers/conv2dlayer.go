@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 
+	"github.com/EganBoschCodes/lossless/neuralnetworks/optimizers"
 	"github.com/EganBoschCodes/lossless/neuralnetworks/save"
 	"github.com/EganBoschCodes/lossless/utils"
 	"gonum.org/v1/gonum/mat"
@@ -162,4 +163,27 @@ func (layer *Conv2DLayer) PrettyPrint() string {
 		ret += fmt.Sprintln(utils.JSify(kernel))
 	}
 	return ret
+}
+
+type KernelShift struct {
+	shifts []*mat.Dense
+}
+
+func (k *KernelShift) Apply(layer Layer, opt optimizers.Optimizer, scale float64) {
+	for i, shift := range k.shifts {
+		shift = opt.Rescale(shift)
+		shift.Scale(scale, shift)
+		layer.(*Conv2DLayer).kernels[i].Add(layer.(*Conv2DLayer).kernels[i], shift)
+	}
+}
+
+func (k *KernelShift) Combine(k2 ShiftType) ShiftType {
+	for i := range k.shifts {
+		k.shifts[i].Add(k.shifts[i], k2.(*KernelShift).shifts[i])
+	}
+	return k
+}
+
+func (k *KernelShift) NumMatrices() int {
+	return len(k.shifts)
 }

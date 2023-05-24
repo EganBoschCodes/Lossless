@@ -3,6 +3,7 @@ package layers
 import (
 	"fmt"
 
+	"github.com/EganBoschCodes/lossless/neuralnetworks/optimizers"
 	"github.com/EganBoschCodes/lossless/neuralnetworks/save"
 	"github.com/EganBoschCodes/lossless/utils"
 
@@ -99,14 +100,14 @@ func (layer *BatchnormLayer) popCache() {
 }
 
 func (layer *BatchnormLayer) Back(cache CacheType, forwardGradients *mat.Dense) (ShiftType, *mat.Dense) {
-	meanShifts, stddevShifts := utils.DenseLike(layer.means), utils.DenseLike(layer.means)
+	meanShifts := utils.DenseLike(layer.means)
 	normedSlice := utils.GetSlice(cache.(*BatchNormCache).Normed)
 
 	// Calculate the Local Gradients
 	_, cols := forwardGradients.Dims()
-	stddevShifts.Apply(func(i, j int, v float64) float64 {
-		return v * normedSlice[i*cols+j] * layer.GradientScale
-	}, forwardGradients)
+	stddevShifts := utils.FromSlice(utils.MapWithIndex(utils.GetSlice(forwardGradients), func(i int, v float64) float64 {
+		return v * normedSlice[i] * layer.GradientScale
+	}))
 	meanShifts.Copy(forwardGradients)
 
 	// Rescale the gradients to pass back
@@ -139,5 +140,34 @@ func (layer *BatchnormLayer) FromBytes(bytes []byte) {
 
 func (layer *BatchnormLayer) PrettyPrint() string {
 	return fmt.Sprintf("Batchnorm Layer\nMeans: %.4f,\nStdDevs: %.4f\nTrained Means: %.4f\nTrained StdDevs: %.4f\n", utils.GetSlice(layer.means), utils.GetSlice(layer.stddevs), utils.GetSlice(layer.trainedMeans), utils.GetSlice(layer.trainedStddevs))
+}
 
+type BatchNormShift struct {
+	meanShift   *mat.Dense
+	stddevShift *mat.Dense
+}
+
+func (b *BatchNormShift) Apply(rawlayer Layer, opt optimizers.Optimizer, scale float64) {
+	layer := rawlayer.(*BatchnormLayer)
+	if len(layer.cache) >= layer.BatchSize {
+		layer.popCache()
+	}
+
+	b.meanShift, b.stddevShift = opt.Rescale(b.meanShift), opt.Rescale(b.stddevShift)
+	b.meanShift.Scale(scale, b.meanShift)
+	layer.trainedMeans.Add(layer.trainedMeans, b.meanShift)
+
+	b.stddevShift.Scale(scale, b.stddevShift)
+	layer.trainedStddevs.Add(layer.trainedStddevs, b.stddevShift)
+}
+
+func (b *BatchNormShift) Combine(b2 ShiftType) ShiftType {
+	b.meanShift.Add(b.meanShift, b2.(*BatchNormShift).meanShift)
+	b.stddevShift.Add(b.stddevShift, b2.(*BatchNormShift).stddevShift)
+
+	return b
+}
+
+func (b *BatchNormShift) NumMatrices() int {
+	return 2
 }
