@@ -86,14 +86,14 @@ func (network *LSTM) Initialize(numInputs int, numOutputs int, ForgetGate []laye
 	network.initializeGate(network.InterpretGate, network.numOutputs, -1)
 }
 
-func (network *LSTM) passThroughGate(input mat.Matrix, gate []layers.Layer) *mat.Dense {
+func (network *LSTM) passThroughGate(input *mat.Dense, gate []layers.Layer) *mat.Dense {
 	for _, layer := range gate {
 		input, _ = layer.Pass(input)
 	}
-	return input.(*mat.Dense)
+	return input
 }
 
-func (network *LSTM) passThroughGateWithCache(input mat.Matrix, gate []layers.Layer) (*mat.Dense, []layers.CacheType) {
+func (network *LSTM) passThroughGateWithCache(input *mat.Dense, gate []layers.Layer) (*mat.Dense, []layers.CacheType) {
 	caches := make([]layers.CacheType, len(gate))
 
 	for i, layer := range gate {
@@ -102,7 +102,7 @@ func (network *LSTM) passThroughGateWithCache(input mat.Matrix, gate []layers.La
 		caches[i] = cache
 		input = output
 	}
-	return input.(*mat.Dense), caches
+	return input, caches
 }
 
 func (network *LSTM) Evaluate(inputSeries [][]float64) []float64 {
@@ -180,7 +180,7 @@ func createNilShifts(length int) []layers.ShiftType {
 	return utils.Map(make([]layers.ShiftType, length), func(_ layers.ShiftType) layers.ShiftType { return &layers.NilShift{} })
 }
 
-func getGateShifts(gate []layers.Layer, gateCache []layers.CacheType, forwardGradients mat.Matrix) (shifts []layers.ShiftType, startingGradients mat.Matrix) {
+func getGateShifts(gate []layers.Layer, gateCache []layers.CacheType, forwardGradients *mat.Dense) (shifts []layers.ShiftType, startingGradients *mat.Dense) {
 	shifts = make([]layers.ShiftType, len(gate))
 	for i := len(gate) - 1; i >= 0; i-- {
 		shifts[i], forwardGradients = gate[i].Back(gateCache[i], forwardGradients)
@@ -189,14 +189,14 @@ func getGateShifts(gate []layers.Layer, gateCache []layers.CacheType, forwardGra
 }
 
 type GateCache struct {
-	output mat.Matrix
+	output *mat.Dense
 	caches []layers.CacheType
 }
 
 func (network *LSTM) learn(dataset []datasets.DataPoint, shiftChannel chan [][]layers.ShiftType) {
 	inputSeries, targets := datasets.Split(dataset)
 
-	cellStates, hiddenStates := []mat.Matrix{mat.NewDense(network.numOutputs, 1, nil)}, []mat.Matrix{mat.NewDense(network.numOutputs, 1, nil)}
+	cellStates, hiddenStates := []*mat.Dense{mat.NewDense(network.numOutputs, 1, nil)}, []*mat.Dense{mat.NewDense(network.numOutputs, 1, nil)}
 	forgetGateCaches, inputGateCaches, candidateGateCaches, outputGateCaches, interpretGateCaches := make([]GateCache, 0), make([]GateCache, 0), make([]GateCache, 0), make([]GateCache, 0), make([]GateCache, 0)
 	forgetGateShifts, inputGateShifts, candidateGateShifts, outputGateShifts, interpretGateShifts := createNilShifts(len(network.ForgetGate)), createNilShifts(len(network.InputGate)), createNilShifts(len(network.CandidateGate)), createNilShifts(len(network.OutputGate)), createNilShifts(len(network.InterpretGate))
 

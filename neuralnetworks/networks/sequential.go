@@ -50,7 +50,7 @@ Takes in a single input and passes it through the network.
 */
 func (network *Sequential) Evaluate(input []float64) []float64 {
 	// Convert slice into matrix
-	var inputMat mat.Matrix
+	var inputMat *mat.Dense
 	inputMat = mat.NewDense(len(input), 1, input)
 
 	// Pass the input through all the layers
@@ -71,7 +71,7 @@ func (network *Sequential) learn(input []float64, target []float64, channel chan
 	// Done very similarly to Evaluate, but we just cache the inputs basically so we can use them to do backprop.
 	caches := make([]layers.CacheType, 0)
 
-	var nextInput mat.Matrix
+	var nextInput *mat.Dense
 	nextInput = mat.NewDense(len(input), 1, input)
 	for _, layer := range network.Layers {
 		layerOutput, layerCache := layer.Pass(nextInput)
@@ -86,7 +86,7 @@ func (network *Sequential) learn(input []float64, target []float64, channel chan
 		// Basic cross-entropy loss gradient.
 		gradient[i] = (target[i] - nextInput.At(i, 0))
 	}
-	var gradientMat mat.Matrix
+	var gradientMat *mat.Dense
 	gradientMat = mat.NewDense(len(gradient), 1, gradient)
 
 	// Get all the shifts for each layer

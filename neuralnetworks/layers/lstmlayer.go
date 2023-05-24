@@ -50,7 +50,7 @@ func (layer *LSTMLayer) Initialize(numInputs int) {
 	layer.outputGate.Initialize(layer.numConcat)
 }
 
-func (layer *LSTMLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
+func (layer *LSTMLayer) Pass(input *mat.Dense) (*mat.Dense, CacheType) {
 	hiddenState, cellState := mat.NewDense(layer.Outputs, 1, nil), mat.NewDense(layer.Outputs, 1, nil)
 	inputSlice := utils.GetSlice(input)
 
@@ -63,24 +63,24 @@ func (layer *LSTMLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
 
 		// Forget Gate
 		forgetOutput, _ := layer.forgetGate.Pass(concatInput)
-		forgetOutput.(*mat.Dense).Apply(func(i int, j int, v float64) float64 {
+		forgetOutput.Apply(func(i int, j int, v float64) float64 {
 			return sigmoid(v)
 		}, forgetOutput)
 		cellState.MulElem(forgetOutput, cellState)
-		forgetOutputs = append(forgetOutputs, forgetOutput.(*mat.Dense))
+		forgetOutputs = append(forgetOutputs, forgetOutput)
 
 		// Input and Candidate Gate
 		inputOutput, _ := layer.forgetGate.Pass(concatInput)
-		inputOutput.(*mat.Dense).Apply(func(i int, j int, v float64) float64 {
+		inputOutput.Apply(func(i int, j int, v float64) float64 {
 			return sigmoid(v)
 		}, inputOutput)
-		inputOutputs = append(inputOutputs, inputOutput.(*mat.Dense))
+		inputOutputs = append(inputOutputs, inputOutput)
 
 		candidateOutput, _ := layer.forgetGate.Pass(concatInput)
-		candidateOutput.(*mat.Dense).Apply(func(i int, j int, v float64) float64 {
+		candidateOutput.Apply(func(i int, j int, v float64) float64 {
 			return math.Tanh(v)
 		}, candidateOutput)
-		candidateOutputs = append(candidateOutputs, candidateOutput.(*mat.Dense))
+		candidateOutputs = append(candidateOutputs, candidateOutput)
 
 		newMemories := utils.DenseLike(candidateOutput)
 		newMemories.MulElem(inputOutput, candidateOutput)
@@ -89,10 +89,10 @@ func (layer *LSTMLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
 
 		// Output Gate
 		outputOutput, _ := layer.forgetGate.Pass(concatInput)
-		outputOutput.(*mat.Dense).Apply(func(i int, j int, v float64) float64 {
+		outputOutput.Apply(func(i int, j int, v float64) float64 {
 			return sigmoid(v)
 		}, outputOutput)
-		outputOutputs = append(outputOutputs, outputOutput.(*mat.Dense))
+		outputOutputs = append(outputOutputs, outputOutput)
 
 		tanhCellState := utils.DenseLike(cellState)
 		tanhCellState.Apply(func(i int, j int, v float64) float64 {
@@ -119,7 +119,7 @@ func (layer *LSTMLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
 	return hiddenState, layerCache
 }
 
-func (layer *LSTMLayer) Back(cache CacheType, frontalPass mat.Matrix) (shift ShiftType, backpass mat.Matrix) {
+func (layer *LSTMLayer) Back(cache CacheType, frontalPass *mat.Dense) (shift ShiftType, backpass *mat.Dense) {
 	lstmCache := cache.(*LSTMCache)
 	inputs, cellStates, forgetOutputs, inputOutputs, candidateOutputs, outputOutputs := lstmCache.Inputs, lstmCache.CellStates, lstmCache.ForgetOutputs, lstmCache.InputOutputs, lstmCache.CandidateOutputs, lstmCache.OutputOutputs
 
@@ -133,7 +133,7 @@ func (layer *LSTMLayer) Back(cache CacheType, frontalPass mat.Matrix) (shift Shi
 		forwardGradients = utils.Map(utils.Cut(utils.GetSlice(frontalPass), layer.Outputs), utils.FromSlice)
 	} else {
 		forwardGradients = utils.Duplicate(mat.NewDense(layer.Outputs, 1, nil), layer.IntervalSize)
-		forwardGradients[len(forwardGradients)-1] = frontalPass.(*mat.Dense)
+		forwardGradients[len(forwardGradients)-1] = frontalPass
 	}
 
 	backwardGradients := make([]float64, 0)

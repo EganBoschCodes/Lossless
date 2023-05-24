@@ -23,22 +23,20 @@ func (layer *TanhLayer) Initialize(n_inputs int) {
 	}
 }
 
-func (layer *TanhLayer) Pass(input mat.Matrix) (mat.Matrix, CacheType) {
-	input.(*mat.Dense).Apply(func(i int, j int, v float64) float64 { return math.Tanh(v) }, input)
-	return input, &OutputCache{Output: input.(*mat.Dense)}
+func (layer *TanhLayer) Pass(input *mat.Dense) (*mat.Dense, CacheType) {
+	input.Apply(func(i int, j int, v float64) float64 { return math.Tanh(v) }, input)
+	return input, &OutputCache{Output: input}
 }
 
-func (layer *TanhLayer) Back(cache CacheType, forwardGradients mat.Matrix) (ShiftType, mat.Matrix) {
+func (layer *TanhLayer) Back(cache CacheType, forwardGradients *mat.Dense) (ShiftType, *mat.Dense) {
 	outputSlice := utils.GetSlice(cache.(*OutputCache).Output)
 	_, c := forwardGradients.Dims()
-	forwardGradients.(*mat.Dense).Apply(func(i int, j int, v float64) float64 {
+	forwardGradients.Apply(func(i int, j int, v float64) float64 {
 		val := outputSlice[i*c+j]
 		return v * (1 - val*val) * layer.GradientScale
 	}, forwardGradients)
 	return &NilShift{}, forwardGradients
 }
-
-func (layer *TanhLayer) GetShape() mat.Matrix { return nil }
 
 func (layer *TanhLayer) NumOutputs() int {
 	return layer.n_inputs
