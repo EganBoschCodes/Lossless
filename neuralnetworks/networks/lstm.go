@@ -22,6 +22,7 @@ type LSTM struct {
 	InterpretGate []layers.Layer
 
 	BatchSize    int
+	SubBatch     int
 	LearningRate float64
 
 	numInputs    int
@@ -47,6 +48,9 @@ func (network *LSTM) Initialize(numInputs int, numOutputs int, ForgetGate []laye
 	network.numInputs, network.numOutputs, network.concatInputs = numInputs, numOutputs, numInputs+numOutputs
 	if network.BatchSize == 0 {
 		network.BatchSize = 8
+	}
+	if network.SubBatch == 0 {
+		network.SubBatch = 1
 	}
 	if network.LearningRate == 0 {
 		network.LearningRate = 0.05
@@ -360,6 +364,31 @@ func (network *LSTM) applyShifts(shifts [][]layers.ShiftType) {
 	network.applyShiftsToGate(network.InterpretGate, interpretGateShifts)
 }
 
+func (network *LSTM) optimize(allShifts [][]layers.ShiftType, done chan [][]layers.ShiftType) {
+	// Initialize the optimizer with the right amount of memory if not already done.
+	if !network.Optimizer.Initialized() {
+		numShifts := 0
+		for _, gateShifts := range allShifts {
+			for _, shift := range gateShifts {
+				numShifts += shift.NumMatrices()
+			}
+		}
+		network.Optimizer.Initialize(numShifts)
+	}
+
+	// Optimize the shifts!
+	i := 0
+	for _, gateShifts := range allShifts {
+		for _, shift := range gateShifts {
+			shift.Optimize(network.Optimizer, i)
+			i += shift.NumMatrices()
+		}
+	}
+
+	// Send back to the main thread
+	done <- allShifts
+}
+
 func (network *LSTM) Train(trainingData []datasets.DataPoint, testingData []datasets.DataPoint, stepSize int, timespan time.Duration) {
 	fmt.Printf("Beginning Loss (Training, Testing): %.2f, %.2f\n\n", network.getLoss(trainingData), network.getLoss(testingData))
 
@@ -370,21 +399,38 @@ func (network *LSTM) Train(trainingData []datasets.DataPoint, testingData []data
 	for trainingTime < timespan {
 		shiftChannel := make(chan [][]layers.ShiftType)
 
+		// Start the training intervals
 		for i := 0; i < network.BatchSize; i++ {
 			intervalStart := rand.Intn(len(trainingData) - stepSize)
 			go network.learn(trainingData[intervalStart:intervalStart+stepSize], shiftChannel)
 		}
 
-		combinedShifts := [][]layers.ShiftType{createNilShifts(len(network.ForgetGate)), createNilShifts(len(network.InputGate)), createNilShifts(len(network.CandidateGate)), createNilShifts(len(network.OutputGate)), createNilShifts(len(network.InterpretGate))}
-		for i := 0; i < network.BatchSize; i++ {
-			allShifts := <-shiftChannel
-			combinedShifts = utils.DoubleMap(combinedShifts, allShifts, combineShifts)
+		// Capture the calculated shifts, compute a sub-average, then send to Optimizer
+		optimizedShiftChannel := make(chan [][]layers.ShiftType)
+		for item := 0; item < network.BatchSize/network.SubBatch; item++ {
+			var subShifts [][]layers.ShiftType
+			for i := 0; i < network.SubBatch; i++ {
+				datapointShifts := <-shiftChannel
+				if i == 0 {
+					subShifts = datapointShifts
+				} else {
+					subShifts = utils.DoubleMap(subShifts, datapointShifts, combineShifts)
+				}
+			}
+			go network.optimize(subShifts, optimizedShiftChannel)
 		}
+
+		combinedShifts := [][]layers.ShiftType{createNilShifts(len(network.ForgetGate)), createNilShifts(len(network.InputGate)), createNilShifts(len(network.CandidateGate)), createNilShifts(len(network.OutputGate)), createNilShifts(len(network.InterpretGate))}
+		for i := 0; i < network.BatchSize/network.SubBatch; i++ {
+			optimizedShifts := <-optimizedShiftChannel
+			combinedShifts = utils.DoubleMap(combinedShifts, optimizedShifts, combineShifts)
+		}
+
 		network.applyShifts(combinedShifts)
 
 		// Just let me know how much time is left
 		trainingTime = time.Since(start)
-		steps := float64(trainingTime*1000/timespan) / 10
+		steps := math.Min(100, float64(trainingTime*1000/timespan)/10)
 		progressBar := ""
 		for i := 0; i < 20; i++ {
 			if i < int(steps)/5 {
