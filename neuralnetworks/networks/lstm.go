@@ -8,6 +8,7 @@ import (
 
 	"github.com/EganBoschCodes/lossless/datasets"
 	"github.com/EganBoschCodes/lossless/neuralnetworks/layers"
+	"github.com/EganBoschCodes/lossless/neuralnetworks/optimizers"
 	"github.com/EganBoschCodes/lossless/neuralnetworks/save"
 	"github.com/EganBoschCodes/lossless/utils"
 	"gonum.org/v1/gonum/mat"
@@ -26,6 +27,8 @@ type LSTM struct {
 	numInputs    int
 	numOutputs   int
 	concatInputs int
+
+	Optimizer optimizers.Optimizer
 }
 
 func (network *LSTM) initializeGate(layers []layers.Layer, numInputs int, expectedOutputs int) {
@@ -47,6 +50,9 @@ func (network *LSTM) Initialize(numInputs int, numOutputs int, ForgetGate []laye
 	}
 	if network.LearningRate == 0 {
 		network.LearningRate = 0.05
+	}
+	if network.Optimizer == nil {
+		network.Optimizer = &optimizers.GradientDescent{}
 	}
 
 	network.ForgetGate, network.InputGate, network.CandidateGate, network.OutputGate, network.InterpretGate = ForgetGate, InputGate, CandidateGate, OutputGate, InterpretGate
@@ -86,14 +92,14 @@ func (network *LSTM) Initialize(numInputs int, numOutputs int, ForgetGate []laye
 	network.initializeGate(network.InterpretGate, network.numOutputs, -1)
 }
 
-func (network *LSTM) passThroughGate(input mat.Matrix, gate []layers.Layer) *mat.Dense {
+func (network *LSTM) passThroughGate(input *mat.Dense, gate []layers.Layer) *mat.Dense {
 	for _, layer := range gate {
 		input, _ = layer.Pass(input)
 	}
-	return input.(*mat.Dense)
+	return input
 }
 
-func (network *LSTM) passThroughGateWithCache(input mat.Matrix, gate []layers.Layer) (*mat.Dense, []layers.CacheType) {
+func (network *LSTM) passThroughGateWithCache(input *mat.Dense, gate []layers.Layer) (*mat.Dense, []layers.CacheType) {
 	caches := make([]layers.CacheType, len(gate))
 
 	for i, layer := range gate {
@@ -102,7 +108,7 @@ func (network *LSTM) passThroughGateWithCache(input mat.Matrix, gate []layers.La
 		caches[i] = cache
 		input = output
 	}
-	return input.(*mat.Dense), caches
+	return input, caches
 }
 
 func (network *LSTM) Evaluate(inputSeries [][]float64) []float64 {
@@ -180,7 +186,7 @@ func createNilShifts(length int) []layers.ShiftType {
 	return utils.Map(make([]layers.ShiftType, length), func(_ layers.ShiftType) layers.ShiftType { return &layers.NilShift{} })
 }
 
-func getGateShifts(gate []layers.Layer, gateCache []layers.CacheType, forwardGradients mat.Matrix) (shifts []layers.ShiftType, startingGradients mat.Matrix) {
+func getGateShifts(gate []layers.Layer, gateCache []layers.CacheType, forwardGradients *mat.Dense) (shifts []layers.ShiftType, startingGradients *mat.Dense) {
 	shifts = make([]layers.ShiftType, len(gate))
 	for i := len(gate) - 1; i >= 0; i-- {
 		shifts[i], forwardGradients = gate[i].Back(gateCache[i], forwardGradients)
@@ -189,14 +195,14 @@ func getGateShifts(gate []layers.Layer, gateCache []layers.CacheType, forwardGra
 }
 
 type GateCache struct {
-	output mat.Matrix
+	output *mat.Dense
 	caches []layers.CacheType
 }
 
 func (network *LSTM) learn(dataset []datasets.DataPoint, shiftChannel chan [][]layers.ShiftType) {
 	inputSeries, targets := datasets.Split(dataset)
 
-	cellStates, hiddenStates := []mat.Matrix{mat.NewDense(network.numOutputs, 1, nil)}, []mat.Matrix{mat.NewDense(network.numOutputs, 1, nil)}
+	cellStates, hiddenStates := []*mat.Dense{mat.NewDense(network.numOutputs, 1, nil)}, []*mat.Dense{mat.NewDense(network.numOutputs, 1, nil)}
 	forgetGateCaches, inputGateCaches, candidateGateCaches, outputGateCaches, interpretGateCaches := make([]GateCache, 0), make([]GateCache, 0), make([]GateCache, 0), make([]GateCache, 0), make([]GateCache, 0)
 	forgetGateShifts, inputGateShifts, candidateGateShifts, outputGateShifts, interpretGateShifts := createNilShifts(len(network.ForgetGate)), createNilShifts(len(network.InputGate)), createNilShifts(len(network.CandidateGate)), createNilShifts(len(network.OutputGate)), createNilShifts(len(network.InterpretGate))
 
@@ -328,6 +334,25 @@ func combineShifts(current []layers.ShiftType, next []layers.ShiftType) []layers
 func (network *LSTM) applyShifts(shifts [][]layers.ShiftType) {
 	forgetGateShifts, inputGateShifts, candidateGateShifts, outputGateShifts, interpretGateShifts := shifts[0], shifts[1], shifts[2], shifts[3], shifts[4]
 
+	if !network.Optimizer.Initialized() {
+		numShifts := 0
+		for _, shift := range forgetGateShifts {
+			numShifts += shift.NumMatrices()
+		}
+		for _, shift := range inputGateShifts {
+			numShifts += shift.NumMatrices()
+		}
+		for _, shift := range candidateGateShifts {
+			numShifts += shift.NumMatrices()
+		}
+		for _, shift := range outputGateShifts {
+			numShifts += shift.NumMatrices()
+		}
+		for _, shift := range interpretGateShifts {
+			numShifts += shift.NumMatrices()
+		}
+		network.Optimizer.Initialize(numShifts)
+	}
 	network.applyShiftsToGate(network.ForgetGate, forgetGateShifts)
 	network.applyShiftsToGate(network.InputGate, inputGateShifts)
 	network.applyShiftsToGate(network.CandidateGate, candidateGateShifts)

@@ -18,6 +18,14 @@ func Map[T any, U any](vals []T, mapfunc func(T) U) []U {
 	return mappedVals
 }
 
+func MapWithIndex[T any, U any](vals []T, mapfunc func(int, T) U) []U {
+	mappedVals := make([]U, len(vals))
+	for i, val := range vals {
+		mappedVals[i] = mapfunc(i, val)
+	}
+	return mappedVals
+}
+
 func Map2D[T any, U any](vals [][]T, mapfunc func(T) U) [][]U {
 	mappedVals := make([][]U, len(vals))
 	for i, val := range vals {
@@ -108,6 +116,12 @@ func FindWithCompare[T any, U any](vals []T, val U, f func(T, U) bool) int {
 		}
 	}
 	return -1
+}
+
+func ForEach[T any](vals []T, foreach func(int, T)) {
+	for i, val := range vals {
+		foreach(i, val)
+	}
 }
 
 // Returns the last item in a list.

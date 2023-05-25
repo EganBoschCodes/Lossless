@@ -47,7 +47,7 @@ func convolveInner(data mat.Matrix, kernel mat.Matrix, output mat.Matrix, rstart
 	notifier <- 1
 }
 
-func ConvolveNoPadding(data mat.Matrix, kernel mat.Matrix) mat.Matrix {
+func ConvolveNoPadding(data mat.Matrix, kernel mat.Matrix) *mat.Dense {
 	dr, dc := data.Dims()
 	kr, kc := kernel.Dims()
 
@@ -131,7 +131,7 @@ func ConvolveWithPadding(data mat.Matrix, kernel mat.Matrix) mat.Matrix {
 	instead of reducing them.
 */
 
-func MaxPool(data mat.Matrix, width int, height int) mat.Matrix {
+func MaxPool(data mat.Matrix, width int, height int) *mat.Dense {
 	dr, dc := data.Dims()
 
 	if dr%width != 0 || dc%height != 0 {
@@ -181,11 +181,15 @@ func MaxPoolMap(data mat.Matrix, width int, height int) mat.Matrix {
 			for i := 0; i < width; i++ {
 				for j := 0; j < height; j++ {
 					output.Set(r+i, c+j, 0.1)
-					if data.At(r+i, c+j) > max {
+					if data.At(r+i, c+j) >= max {
 						max = data.At(r+i, c+j)
 						maxr, maxc = i, j
 					}
 				}
+			}
+
+			if r+maxr < 0 || c+maxc < 0 {
+				panic("\n\nMaxPoolMap is recieving NaN input!")
 			}
 			output.Set(r+maxr, c+maxc, 1)
 		}
@@ -230,4 +234,32 @@ func JSify(m mat.Matrix) string {
 	}
 	retString += "]"
 	return retString
+}
+
+func getUpdates(startI int, numCols int, values []float64, f func(int, int, float64) float64, channel chan int) {
+	end := Min(startI+10000, len(values))
+	for i := startI; i < end; i++ {
+		r, c := i/numCols, i%numCols
+		values[i] = f(r, c, values[i])
+	}
+	channel <- 1
+}
+
+func FastApply(m *mat.Dense, f func(int, int, float64) float64) *mat.Dense {
+	r, c := m.Dims()
+	channel := make(chan int)
+	slice := GetSlice(m)
+
+	threadsStarted := 0
+	for i := 0; i < len(slice); i += 10000 {
+		go getUpdates(i, c, slice, f, channel)
+		threadsStarted++
+	}
+
+	threadsFinished := 0
+	for threadsFinished < threadsStarted {
+		threadsFinished += <-channel
+	}
+
+	return mat.NewDense(r, c, slice)
 }
