@@ -147,13 +147,12 @@ type BatchNormShift struct {
 	stddevShift *mat.Dense
 }
 
-func (b *BatchNormShift) Apply(rawlayer Layer, opt optimizers.Optimizer, scale float64) {
+func (b *BatchNormShift) Apply(rawlayer Layer, scale float64) {
 	layer := rawlayer.(*BatchnormLayer)
 	if len(layer.cache) >= layer.BatchSize {
 		layer.popCache()
 	}
 
-	b.meanShift, b.stddevShift = opt.Rescale(b.meanShift), opt.Rescale(b.stddevShift)
 	b.meanShift.Scale(scale, b.meanShift)
 	layer.trainedMeans.Add(layer.trainedMeans, b.meanShift)
 
@@ -166,6 +165,10 @@ func (b *BatchNormShift) Combine(b2 ShiftType) ShiftType {
 	b.stddevShift.Add(b.stddevShift, b2.(*BatchNormShift).stddevShift)
 
 	return b
+}
+
+func (b *BatchNormShift) Optimize(opt optimizers.Optimizer, index int) {
+	b.meanShift, b.stddevShift = opt.Rescale(b.meanShift, index), opt.Rescale(b.stddevShift, index+1)
 }
 
 func (b *BatchNormShift) NumMatrices() int {

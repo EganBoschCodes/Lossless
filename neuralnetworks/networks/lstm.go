@@ -323,7 +323,7 @@ func (network *LSTM) getLoss(dataset []datasets.DataPoint) float64 {
 
 func (network *LSTM) applyShiftsToGate(layers []layers.Layer, shifts []layers.ShiftType) {
 	for i, shift := range shifts {
-		shift.Apply(layers[i], network.Optimizer, network.LearningRate)
+		shift.Apply(layers[i], network.LearningRate)
 	}
 }
 

@@ -235,3 +235,31 @@ func JSify(m mat.Matrix) string {
 	retString += "]"
 	return retString
 }
+
+func getUpdates(startI int, numCols int, values []float64, f func(int, int, float64) float64, channel chan int) {
+	end := Min(startI+10000, len(values))
+	for i := startI; i < end; i++ {
+		r, c := i/numCols, i%numCols
+		values[i] = f(r, c, values[i])
+	}
+	channel <- 1
+}
+
+func FastApply(m *mat.Dense, f func(int, int, float64) float64) *mat.Dense {
+	r, c := m.Dims()
+	channel := make(chan int)
+	slice := GetSlice(m)
+
+	threadsStarted := 0
+	for i := 0; i < len(slice); i += 10000 {
+		go getUpdates(i, c, slice, f, channel)
+		threadsStarted++
+	}
+
+	threadsFinished := 0
+	for threadsFinished < threadsStarted {
+		threadsFinished += <-channel
+	}
+
+	return mat.NewDense(r, c, slice)
+}

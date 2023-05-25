@@ -2,46 +2,60 @@ package optimizers
 
 import (
 	"math"
+	"sync"
 
 	"github.com/EganBoschCodes/lossless/utils"
 	"gonum.org/v1/gonum/mat"
 )
 
 type AdaGrad struct {
-	cache []*mat.Dense
+	Epsilon float64
 
-	counter      int
+	cache   []*mat.Dense
+	mutexes []sync.Mutex
+
 	cachesPopped int
 	initialized  bool
 }
 
 func (ada *AdaGrad) Initialize(n int) {
 	ada.cache = make([]*mat.Dense, n)
+	ada.mutexes = make([]sync.Mutex, n)
 	ada.cachesPopped = 1
+
+	if ada.Epsilon == 0 {
+		ada.Epsilon = 1e-8
+	}
+
+	ada.initialized = true
 }
 
 func (ada *AdaGrad) Initialized() bool {
 	return ada.initialized
 }
 
-func (ada *AdaGrad) Rescale(shift *mat.Dense) *mat.Dense {
-	if ada.cache[ada.counter] == nil {
-		ada.cache[ada.counter] = utils.DenseLike(shift)
+func (ada *AdaGrad) Size() int {
+	return len(ada.cache)
+}
+
+func (ada *AdaGrad) Rescale(shift *mat.Dense, index int) *mat.Dense {
+	ada.mutexes[index].Lock()
+	if ada.cache[index] == nil {
+		ada.cache[index] = utils.DenseLike(shift)
 	}
 
-	cache := ada.cache[ada.counter]
-	cache.Apply(func(i, j int, v float64) float64 {
+	cache := ada.cache[index]
+	cache = utils.FastApply(cache, func(i, j int, v float64) float64 {
 		shiftVal := shift.At(i, j)
 		return v + shiftVal*shiftVal
-	}, cache)
+	})
+	ada.mutexes[index].Unlock()
 
-	shift.Apply(func(i, j int, v float64) float64 {
-		return 1 / math.Sqrt(cache.At(i, j)/float64(ada.cachesPopped)+1e-10) * v
-	}, shift)
+	shift = utils.FastApply(shift, func(i, j int, v float64) float64 {
+		return v / math.Sqrt(cache.At(i, j)/float64(ada.cachesPopped)+ada.Epsilon)
+	})
 
-	ada.counter++
-	if ada.counter >= len(ada.cache) {
-		ada.counter = 0
+	if index == len(ada.cache) {
 		ada.cachesPopped++
 	}
 

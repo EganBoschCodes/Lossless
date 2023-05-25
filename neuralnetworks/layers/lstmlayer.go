@@ -274,12 +274,12 @@ type LSTMShift struct {
 	outputShift    ShiftType
 }
 
-func (l *LSTMShift) Apply(layer Layer, opt optimizers.Optimizer, scale float64) {
+func (l *LSTMShift) Apply(layer Layer, scale float64) {
 	lstmLayer := layer.(*LSTMLayer)
-	l.forgetShift.Apply(&lstmLayer.forgetGate, opt, scale)
-	l.inputShift.Apply(&lstmLayer.inputGate, opt, scale)
-	l.candidateShift.Apply(&lstmLayer.candidateGate, opt, scale)
-	l.outputShift.Apply(&lstmLayer.outputGate, opt, scale)
+	l.forgetShift.Apply(&lstmLayer.forgetGate, scale)
+	l.inputShift.Apply(&lstmLayer.inputGate, scale)
+	l.candidateShift.Apply(&lstmLayer.candidateGate, scale)
+	l.outputShift.Apply(&lstmLayer.outputGate, scale)
 }
 
 func (l *LSTMShift) Combine(l2 ShiftType) ShiftType {
@@ -290,6 +290,13 @@ func (l *LSTMShift) Combine(l2 ShiftType) ShiftType {
 	l.outputShift = l.outputShift.Combine(lstm2.outputShift)
 
 	return l
+}
+
+func (l *LSTMShift) Optimize(opt optimizers.Optimizer, index int) {
+	l.forgetShift.Optimize(opt, index)
+	l.inputShift.Optimize(opt, index+2)
+	l.candidateShift.Optimize(opt, index+4)
+	l.outputShift.Optimize(opt, index+6)
 }
 
 func (l *LSTMShift) NumMatrices() int {

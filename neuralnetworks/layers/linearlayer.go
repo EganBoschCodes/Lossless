@@ -108,8 +108,7 @@ type WeightShift struct {
 	biasShift   *mat.Dense
 }
 
-func (w *WeightShift) Apply(layer Layer, opt optimizers.Optimizer, scale float64) {
-	w.weightShift, w.biasShift = opt.Rescale(w.weightShift), opt.Rescale(w.biasShift)
+func (w *WeightShift) Apply(layer Layer, scale float64) {
 	w.weightShift.Scale(scale, w.weightShift)
 	w.biasShift.Scale(scale, w.biasShift)
 
@@ -122,6 +121,10 @@ func (w *WeightShift) Combine(w2 ShiftType) ShiftType {
 	w.biasShift.Add(w.biasShift, w2.(*WeightShift).biasShift)
 
 	return w
+}
+
+func (w *WeightShift) Optimize(opt optimizers.Optimizer, index int) {
+	w.weightShift, w.biasShift = opt.Rescale(w.weightShift, index), opt.Rescale(w.biasShift, index+1)
 }
 
 func (w *WeightShift) Scale(f float64) {

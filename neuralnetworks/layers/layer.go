@@ -66,19 +66,20 @@ The default NilShift is defined here, but most layer
 specific shift types are defined in their own files.
 */
 type ShiftType interface {
-	Apply(Layer, optimizers.Optimizer, float64)
+	Apply(Layer, float64)
 	Combine(ShiftType) ShiftType
+	Optimize(optimizers.Optimizer, int)
 
-	Scale(float64)
 	NumMatrices() int
+	Scale(float64)
 }
 
 type NilShift struct{}
 
-func (n *NilShift) Apply(_ Layer, _ optimizers.Optimizer, _ float64) {}
-func (n *NilShift) Combine(other ShiftType) ShiftType {
-	return other
-}
+func (n *NilShift) Apply(_ Layer, _ float64)               {}
+func (n *NilShift) Combine(other ShiftType) ShiftType      { return other }
+func (n *NilShift) Optimize(_ optimizers.Optimizer, _ int) {}
+
 func (n *NilShift) NumMatrices() int { return 0 }
 func (n *NilShift) Scale(f float64)  {}
 

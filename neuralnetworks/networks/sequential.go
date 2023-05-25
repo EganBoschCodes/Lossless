@@ -179,6 +179,15 @@ func (network *Sequential) getEmptyShift() []layers.ShiftType {
 	return shifts
 }
 
+func (network *Sequential) optimize(shifts []layers.ShiftType, done chan []layers.ShiftType) {
+	i := 0
+	for _, layerShift := range shifts {
+		layerShift.Optimize(network.Optimizer, i)
+		i += layerShift.NumMatrices()
+	}
+	done <- shifts
+}
+
 // The main functionality! Accepts a training dataset, a validation dataset,
 // and how long you wish to train for.
 func (network *Sequential) Train(dataset []datasets.DataPoint, testingData []datasets.DataPoint, timespan time.Duration) {
@@ -195,6 +204,7 @@ func (network *Sequential) Train(dataset []datasets.DataPoint, testingData []dat
 
 		// Prepare to capture the weight shifts from each datapoint in the batch
 		shifts := network.getEmptyShift()
+
 		shiftChannel := make(chan []layers.ShiftType)
 		// Start the weight calculations with goroutines
 		for item := 0; item < network.BatchSize; item++ {
@@ -210,25 +220,32 @@ func (network *Sequential) Train(dataset []datasets.DataPoint, testingData []dat
 			}
 		}
 
-		// Capture the calculated weight shifts as they finish and add to the shift
+		optimizedShiftChannel := make(chan []layers.ShiftType)
+		// Capture the calculated weight shifts as they finish and pass to optimizer threads
 		for item := 0; item < network.BatchSize; item++ {
 			datapointShifts := <-shiftChannel
-			for i, layerShift := range datapointShifts {
-				shifts[i] = shifts[i].Combine(layerShift)
+			if !network.Optimizer.Initialized() {
+				numShifts := 0
+				for _, shift := range datapointShifts {
+					numShifts += shift.NumMatrices()
+				}
+				network.Optimizer.Initialize(numShifts)
+			}
+			go network.optimize(datapointShifts, optimizedShiftChannel)
+		}
+
+		// Recieve the Optimized weight shifts
+		for item := 0; item < network.BatchSize; item++ {
+			datapointShifts := <-optimizedShiftChannel
+			for i := range shifts {
+				shifts[i] = shifts[i].Combine(datapointShifts[i])
 			}
 		}
 
 		// Once all shifts have been added in, apply the averaged shifts to all layers
-		if !network.Optimizer.Initialized() {
-			numShifts := 0
-			for _, shift := range shifts {
-				numShifts += shift.NumMatrices()
-			}
-			network.Optimizer.Initialize(numShifts)
-		}
 		for i, shift := range shifts {
 			shift.Scale(1.0 / float64(network.BatchSize))
-			shift.Apply(network.Layers[i], network.Optimizer, network.LearningRate)
+			shift.Apply(network.Layers[i], network.LearningRate)
 		}
 
 		// Just let me know how much time is left

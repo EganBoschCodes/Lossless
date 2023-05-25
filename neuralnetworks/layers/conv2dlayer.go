@@ -169,9 +169,8 @@ type KernelShift struct {
 	shifts []*mat.Dense
 }
 
-func (k *KernelShift) Apply(layer Layer, opt optimizers.Optimizer, scale float64) {
+func (k *KernelShift) Apply(layer Layer, scale float64) {
 	for i, shift := range k.shifts {
-		shift = opt.Rescale(shift)
 		shift.Scale(scale, shift)
 		layer.(*Conv2DLayer).kernels[i].Add(layer.(*Conv2DLayer).kernels[i], shift)
 	}
@@ -182,6 +181,12 @@ func (k *KernelShift) Combine(k2 ShiftType) ShiftType {
 		k.shifts[i].Add(k.shifts[i], k2.(*KernelShift).shifts[i])
 	}
 	return k
+}
+
+func (k *KernelShift) Optimize(opt optimizers.Optimizer, index int) {
+	for i, shift := range k.shifts {
+		k.shifts[i] = opt.Rescale(shift, index+i)
+	}
 }
 
 func (k *KernelShift) NumMatrices() int {
