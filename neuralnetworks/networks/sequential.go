@@ -2,6 +2,7 @@ package networks
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 type Sequential struct {
 	Layers       []layers.Layer
 	BatchSize    int
+	SubBatch     int
 	LearningRate float64
 
 	numInputs int
@@ -41,6 +43,9 @@ func (network *Sequential) Initialize(numInputs int, ls ...layers.Layer) {
 
 	if network.BatchSize == 0 {
 		network.BatchSize = 8
+	}
+	if network.SubBatch == 0 {
+		network.SubBatch = 1
 	}
 	if network.LearningRate == 0 {
 		network.LearningRate = 0.05
@@ -222,20 +227,32 @@ func (network *Sequential) Train(dataset []datasets.DataPoint, testingData []dat
 
 		optimizedShiftChannel := make(chan []layers.ShiftType)
 		// Capture the calculated weight shifts as they finish and pass to optimizer threads
-		for item := 0; item < network.BatchSize; item++ {
-			datapointShifts := <-shiftChannel
-			if !network.Optimizer.Initialized() {
-				numShifts := 0
-				for _, shift := range datapointShifts {
-					numShifts += shift.NumMatrices()
+
+		for item := 0; item < network.BatchSize/network.SubBatch; item++ {
+			var minibatchShifts []layers.ShiftType
+			for i := 0; i < network.SubBatch; i++ {
+				datapointShifts := <-shiftChannel
+				if !network.Optimizer.Initialized() {
+					numShifts := 0
+					for _, shift := range datapointShifts {
+						numShifts += shift.NumMatrices()
+					}
+					network.Optimizer.Initialize(numShifts)
 				}
-				network.Optimizer.Initialize(numShifts)
+				if i == 0 {
+					minibatchShifts = datapointShifts
+				} else {
+					for i, layer := range datapointShifts {
+						minibatchShifts[i] = minibatchShifts[i].Combine(layer)
+					}
+				}
 			}
-			go network.optimize(datapointShifts, optimizedShiftChannel)
+
+			go network.optimize(minibatchShifts, optimizedShiftChannel)
 		}
 
 		// Recieve the Optimized weight shifts
-		for item := 0; item < network.BatchSize; item++ {
+		for item := 0; item < network.BatchSize/network.SubBatch; item++ {
 			datapointShifts := <-optimizedShiftChannel
 			for i := range shifts {
 				shifts[i] = shifts[i].Combine(datapointShifts[i])
@@ -250,7 +267,7 @@ func (network *Sequential) Train(dataset []datasets.DataPoint, testingData []dat
 
 		// Just let me know how much time is left
 		trainingTime = time.Since(start)
-		steps := float64(trainingTime*1000/timespan) / 10
+		steps := math.Min(float64(trainingTime*1000/timespan)/10, 100)
 		progressBar := ""
 		for i := 0; i < 20; i++ {
 			if i < int(steps)/5 {
