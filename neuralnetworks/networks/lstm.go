@@ -420,15 +420,15 @@ func (network *LSTM) Train(trainingData []datasets.DataPoint, testingData []data
 			go network.optimize(subShifts, optimizedShiftChannel)
 		}
 
+		// Recieve the Optimized shifts, then average them out in order to apply
 		combinedShifts := [][]layers.ShiftType{createNilShifts(len(network.ForgetGate)), createNilShifts(len(network.InputGate)), createNilShifts(len(network.CandidateGate)), createNilShifts(len(network.OutputGate)), createNilShifts(len(network.InterpretGate))}
 		for i := 0; i < network.BatchSize/network.SubBatch; i++ {
 			optimizedShifts := <-optimizedShiftChannel
 			combinedShifts = utils.DoubleMap(combinedShifts, optimizedShifts, combineShifts)
 		}
-
 		network.applyShifts(combinedShifts)
 
-		// Just let me know how much time is left
+		// Log how much time is left
 		trainingTime = time.Since(start)
 		steps := math.Min(100, float64(trainingTime*1000/timespan)/10)
 		progressBar := ""
