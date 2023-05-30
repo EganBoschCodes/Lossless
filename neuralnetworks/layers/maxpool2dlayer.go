@@ -39,8 +39,8 @@ func (layer *MaxPool2DLayer) Back(cache CacheType, forwardGradients *mat.Dense) 
 	grownGradients := utils.UnMaxPool(forwardGradients, layer.PoolShape.Rows, layer.PoolShape.Cols)
 	gradientMap := utils.MaxPoolMap(inputs, layer.PoolShape.Rows, layer.PoolShape.Cols)
 
-	returnMatrix := utils.DenseLike(inputs)
-	returnMatrix.MulElem(grownGradients, gradientMap)
+	r, c := inputs.Dims()
+	returnMatrix := mat.NewDense(r, c, utils.FastDot(utils.GetSlice(grownGradients), utils.GetSlice(gradientMap)))
 
 	return &NilShift{}, returnMatrix
 }
