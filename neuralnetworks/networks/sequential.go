@@ -163,14 +163,18 @@ func (network *Sequential) getTotalLoss(dataset []datasets.DataPoint) (float64, 
 
 // Takes in a dataset and prints to Standard Output the loss and accuracy across the dataset.
 func (network *Sequential) TestOnAndLog(dataset []datasets.DataPoint) {
-	network.testOnAndLogWithPrefix(dataset, "")
+	network.testOnAndLogWithPrefix(dataset, "Testing Set ")
 }
 
 func (network *Sequential) testOnAndLogWithPrefix(dataset []datasets.DataPoint, prefix string) {
 	loss, correctGuesses := network.getTotalLoss(dataset)
 	fmt.Printf("\n%sLoss: %.3f\n", prefix, loss)
-	correctPercentage := float64(correctGuesses) / float64(len(dataset)) * 100
-	fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n\n", correctGuesses, len(dataset), correctPercentage)
+	switch utils.LastOf(network.Layers).(type) {
+	case *layers.SoftmaxLayer:
+		correctPercentage := float64(correctGuesses) / float64(len(dataset)) * 100
+		fmt.Printf("Correct Guesses: %d/%d (%.2f%%)\n", correctGuesses, len(dataset), correctPercentage)
+	}
+
 }
 
 // Iterates across all the layers and gets a zero-matrix in the shape of
@@ -198,6 +202,7 @@ func (network *Sequential) optimize(shifts []layers.ShiftType, done chan []layer
 func (network *Sequential) Train(dataset []datasets.DataPoint, testingData []datasets.DataPoint, timespan time.Duration) {
 	// Get a baseline
 	network.testOnAndLogWithPrefix(testingData, "Beginning ")
+	fmt.Println()
 
 	// Start the tracking data
 	start := time.Now()
@@ -280,8 +285,9 @@ func (network *Sequential) Train(dataset []datasets.DataPoint, testingData []dat
 	}
 
 	// Log how we did
+	fmt.Println()
 	network.testOnAndLogWithPrefix(testingData, "Final ")
-	fmt.Printf("Trained Epochs: %d, Trained Datapoints: %d", epochs, epochs*len(dataset)+datapointIndex)
+	fmt.Printf("\rTrained Epochs: %d, Trained Datapoints: %d", epochs, epochs*len(dataset)+datapointIndex)
 }
 
 // This is just for some sanity checking. This lets you see the datapoints
