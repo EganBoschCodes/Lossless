@@ -11,12 +11,14 @@ import (
 )
 
 type LSTMLayer struct {
-	Outputs        int
-	IntervalSize   int
-	OutputSequence bool
+	Outputs   int
+	InputSize int
 
-	numInputs int
-	numConcat int
+	OutputSequence      bool
+	ConstantLengthInput bool
+
+	numConcat       int
+	numTotalOutputs int
 
 	forgetGate    LinearLayer
 	inputGate     LinearLayer
@@ -27,19 +29,21 @@ type LSTMLayer struct {
 	initialCellState   *mat.Dense
 }
 
-func (layer *LSTMLayer) Initialize(numInputs int) {
+func (layer *LSTMLayer) Initialize(totalInputs int) {
 	if layer.Outputs == 0 {
 		panic("Set how many outputs you want in your LSTM layer!")
 	}
-	if layer.IntervalSize == 0 {
-		panic("Set how long the time series is being passed to your LSTM layer!")
+	if layer.InputSize == 0 {
+		panic("Set how large each input chuck being passed to your LSTM layer is!")
 	}
-	if numInputs%layer.IntervalSize != 0 {
-		panic(fmt.Sprintf("Your number of inputs to LSTM layer (%d) should be cleanly divided by IntervalSize (%d)!", numInputs, layer.IntervalSize))
+	if layer.initialCellState != nil {
+		return
 	}
 
-	layer.numInputs = numInputs / layer.IntervalSize
-	layer.numConcat = layer.numInputs + layer.Outputs
+	layer.numConcat = layer.InputSize + layer.Outputs
+	if layer.ConstantLengthInput {
+		layer.numTotalOutputs = totalInputs / layer.InputSize * layer.Outputs
+	}
 
 	layer.forgetGate = LinearLayer{Outputs: layer.Outputs}
 	layer.forgetGate.Initialize(layer.numConcat)
@@ -66,8 +70,8 @@ func (layer *LSTMLayer) Pass(input *mat.Dense) (*mat.Dense, CacheType) {
 	hiddenStates := make([]float64, 0)
 	inputs, cellStates, forgetOutputs, inputOutputs, candidateOutputs, outputOutputs := make([]*mat.Dense, 0), make([]*mat.Dense, 0), make([]*mat.Dense, 0), make([]*mat.Dense, 0), make([]*mat.Dense, 0), make([]*mat.Dense, 0)
 
-	for i := 0; i < len(inputSlice); i += layer.numInputs {
-		concatInput := utils.FromSlice(append(utils.GetSlice(hiddenState), inputSlice[i:i+layer.numInputs]...))
+	for i := 0; i < len(inputSlice); i += layer.InputSize {
+		concatInput := utils.FromSlice(append(utils.GetSlice(hiddenState), inputSlice[i:i+layer.InputSize]...))
 		inputs = append(inputs, concatInput)
 
 		// Forget Gate
@@ -141,7 +145,7 @@ func (layer *LSTMLayer) Back(cache CacheType, frontalPass *mat.Dense) (shift Shi
 	if layer.OutputSequence {
 		forwardGradients = utils.Map(utils.Cut(utils.GetSlice(frontalPass), layer.Outputs), utils.FromSlice)
 	} else {
-		forwardGradients = utils.Duplicate(mat.NewDense(layer.Outputs, 1, nil), layer.IntervalSize)
+		forwardGradients = utils.Duplicate(mat.NewDense(layer.Outputs, 1, nil), len(inputs))
 		forwardGradients[len(forwardGradients)-1] = frontalPass
 	}
 
@@ -235,8 +239,10 @@ func (layer *LSTMLayer) Back(cache CacheType, frontalPass *mat.Dense) (shift Shi
 }
 
 func (layer *LSTMLayer) NumOutputs() int {
-	if layer.OutputSequence {
-		return layer.Outputs * layer.IntervalSize
+	if layer.OutputSequence && !layer.ConstantLengthInput {
+		return -1
+	} else if layer.OutputSequence {
+		return layer.numTotalOutputs
 	}
 	return layer.Outputs
 }
@@ -249,7 +255,7 @@ func (layer *LSTMLayer) ToBytes() []byte {
 
 	cellBytes, hiddenBytes := save.ToBytes(utils.GetSlice(layer.initialCellState)), save.ToBytes(utils.GetSlice(layer.initialHiddenState))
 
-	saveBytes := save.ConstantsToBytes(layer.Outputs, layer.IntervalSize, utils.BoolToInt(layer.OutputSequence), len(forgetBytes), len(cellBytes))
+	saveBytes := save.ConstantsToBytes(layer.Outputs, layer.InputSize, utils.BoolToInt(layer.OutputSequence), utils.BoolToInt(layer.ConstantLengthInput), len(forgetBytes), len(cellBytes))
 	saveBytes = append(saveBytes, forgetBytes...)
 	saveBytes = append(saveBytes, inputBytes...)
 	saveBytes = append(saveBytes, candidateBytes...)
@@ -263,9 +269,9 @@ func (layer *LSTMLayer) ToBytes() []byte {
 
 func (layer *LSTMLayer) FromBytes(bytes []byte) {
 
-	constInts, bytes := save.ConstantsFromBytes(bytes[:20]), bytes[20:]
-	layer.Outputs, layer.IntervalSize, layer.OutputSequence = constInts[0], constInts[1], constInts[2] != 0
-	gateSliceLength, stateSliceLength := constInts[3], constInts[4]
+	constInts, bytes := save.ConstantsFromBytes(bytes[:24]), bytes[24:]
+	layer.Outputs, layer.InputSize, layer.OutputSequence, layer.ConstantLengthInput = constInts[0], constInts[1], constInts[2] != 0, constInts[3] != 0
+	gateSliceLength, stateSliceLength := constInts[4], constInts[5]
 
 	layer.forgetGate.FromBytes(bytes[:gateSliceLength])
 	layer.inputGate.FromBytes(bytes[gateSliceLength : gateSliceLength*2])
@@ -274,11 +280,10 @@ func (layer *LSTMLayer) FromBytes(bytes []byte) {
 
 	bytes = bytes[gateSliceLength*4:]
 	layer.initialCellState, layer.initialHiddenState = utils.FromSlice(save.FromBytes(bytes[:stateSliceLength])), utils.FromSlice(save.FromBytes(bytes[stateSliceLength:]))
-
 }
 
 func (layer *LSTMLayer) PrettyPrint() string {
-	ret := fmt.Sprintf("LSTM Layer\n%d Inputs -> %d Outputs\n\n", layer.numInputs, layer.Outputs)
+	ret := fmt.Sprintf("LSTM Layer\n%d Inputs -> %d Outputs\n\n", layer.InputSize, layer.Outputs)
 	ret += "\nForget Gate:\n" + layer.forgetGate.PrettyPrint()
 	ret += "\nInput Gate:\n" + layer.inputGate.PrettyPrint()
 	ret += "\nCandidate Gate:\n" + layer.candidateGate.PrettyPrint()

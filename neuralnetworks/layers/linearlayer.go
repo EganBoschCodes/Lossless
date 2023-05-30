@@ -24,10 +24,10 @@ type LinearLayer struct {
 
 func (layer *LinearLayer) Initialize(numInputs int) {
 	layer.n_inputs = numInputs
+
 	if layer.weights != nil {
 		return
 	}
-
 	if layer.Outputs == 0 {
 		panic("You must specify how many Outputs a LinearLayer has!")
 	}
