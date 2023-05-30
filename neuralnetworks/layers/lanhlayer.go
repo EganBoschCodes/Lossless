@@ -40,7 +40,7 @@ func (layer *LanhLayer) Back(cache CacheType, forwardGradients *mat.Dense) (Shif
 	forwardGradients.Apply(func(i, j int, v float64) float64 {
 		val := inputSlice[i*c+j]
 		if val <= -1.0 || val >= 1.0 {
-			return 0.1 * v * layer.GradientScale
+			return 0.01 * v * layer.GradientScale
 		}
 		return v * layer.GradientScale
 	}, forwardGradients)
