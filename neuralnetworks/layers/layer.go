@@ -109,6 +109,8 @@ func IndexToLayer(index int) Layer {
 		return &LSTMLayer{}
 	case 9:
 		return &BatchnormLayer{}
+	case 10:
+		return &LanhLayer{}
 	default:
 		return nil
 	}
@@ -136,6 +138,8 @@ func LayerToIndex(layer Layer) int {
 		return 8
 	case *BatchnormLayer:
 		return 9
+	case *LanhLayer:
+		return 10
 	default:
 		return -1
 	}

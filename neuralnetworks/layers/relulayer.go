@@ -2,7 +2,6 @@ package layers
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/EganBoschCodes/lossless/utils"
 
@@ -18,8 +17,15 @@ func (layer *ReluLayer) Initialize(n_inputs int) {
 }
 
 func (layer *ReluLayer) Pass(input *mat.Dense) (*mat.Dense, CacheType) {
-	r, c := input.Dims()
-	return mat.NewDense(r, c, utils.Map(utils.GetSlice(input), func(a float64) float64 { return math.Max(a, 0) })), &InputCache{Input: input}
+	inputCache := utils.DenseLike(input)
+	inputCache.Copy(input)
+	output := utils.FastApply(input, func(i, j int, v float64) float64 {
+		if v < 0 {
+			return 0
+		}
+		return v
+	})
+	return output, &InputCache{Input: inputCache}
 }
 
 func (layer *ReluLayer) Back(cache CacheType, forwardGradients *mat.Dense) (ShiftType, *mat.Dense) {

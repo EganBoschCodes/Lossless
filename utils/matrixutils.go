@@ -263,3 +263,28 @@ func FastApply(m *mat.Dense, f func(int, int, float64) float64) *mat.Dense {
 
 	return mat.NewDense(r, c, slice)
 }
+
+func subDot(f1 []float64, f2 []float64, channel chan int) {
+	for i := range f1 {
+		f1[i] = f1[i] * f2[i]
+	}
+	channel <- 1
+}
+
+func FastDot(f1 []float64, f2 []float64) []float64 {
+	channel := make(chan int)
+
+	threadsStarted := 0
+	for i := 0; i < len(f1); i += 1000 {
+		maxIndex := Min(len(f1), i+1000)
+		go subDot(f1[i:maxIndex], f2[i:maxIndex], channel)
+		threadsStarted++
+	}
+
+	threadsFinished := 0
+	for threadsFinished < threadsStarted {
+		threadsFinished += <-channel
+	}
+
+	return f1
+}
