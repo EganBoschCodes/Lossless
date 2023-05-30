@@ -17,6 +17,7 @@ type Conv2DLayer struct {
 	FirstLayer  bool
 
 	kernels         []*mat.Dense
+	biases          *mat.Dense
 	inputMatrices   int
 	inputLen        int
 	kernelsPerInput int
@@ -61,14 +62,23 @@ func (layer *Conv2DLayer) Initialize(numInputs int) {
 		return
 	}
 
+	// Random Initialization on the kernels
 	layer.kernels = make([]*mat.Dense, layer.NumKernels)
 	for i := range layer.kernels {
 		randweights := make([]float64, layer.KernelShape.Rows*layer.KernelShape.Cols)
 		for j := range randweights {
-			randweights[j] = rand.NormFloat64()
+			randweights[j] = rand.NormFloat64() / 15
 		}
 		layer.kernels[i] = mat.NewDense(layer.KernelShape.Rows, layer.KernelShape.Cols, randweights)
 	}
+
+	// Random Initialization on the biases
+	randweights := make([]float64, layer.NumKernels*layer.outputLen)
+	for j := range randweights {
+		randweights[j] = rand.NormFloat64() / 15
+	}
+
+	layer.biases = mat.NewDense(layer.NumKernels*layer.outputShape.Rows, layer.outputShape.Cols, randweights)
 
 }
 
@@ -84,12 +94,18 @@ func (layer *Conv2DLayer) Pass(input *mat.Dense) (*mat.Dense, CacheType) {
 		passingSlice = append(passingSlice, utils.GetSlice(convolution)...)
 	}
 
+	convolvedOutputs := mat.NewDense(layer.NumKernels*layer.outputShape.Rows, layer.outputShape.Cols, passingSlice)
+	convolvedOutputs.Add(convolvedOutputs, layer.biases)
+
 	return mat.NewDense(layer.NumKernels*layer.outputShape.Rows, layer.outputShape.Cols, passingSlice), &InputCache{Input: input}
 }
 
 func (layer *Conv2DLayer) Back(cache CacheType, forwardGradients *mat.Dense) (ShiftType, *mat.Dense) {
 	allShifts := make([]*mat.Dense, layer.NumKernels)
 	inputSlice := utils.GetSlice(cache.(*InputCache).Input)
+
+	biasShift := utils.DenseLike(forwardGradients)
+	biasShift.Copy(forwardGradients)
 	gradientSlice := utils.GetSlice(forwardGradients)
 
 	// Calculate the shifts for the local kernels
@@ -104,7 +120,7 @@ func (layer *Conv2DLayer) Back(cache CacheType, forwardGradients *mat.Dense) (Sh
 	}
 
 	if layer.FirstLayer {
-		return &KernelShift{shifts: allShifts}, nil
+		return &KernelShift{shifts: allShifts, biases: biasShift}, nil
 	}
 
 	// Calculate the gradients to pass back
@@ -126,7 +142,7 @@ func (layer *Conv2DLayer) Back(cache CacheType, forwardGradients *mat.Dense) (Sh
 		passbackMatrices[inputIndex].Add(passbackMatrices[inputIndex], utils.ConvolveWithPadding(correspondingGradient, rotatedKernel))
 	}
 
-	return &KernelShift{shifts: allShifts}, mat.NewDense(layer.inputMatrices*layer.InputShape.Rows, layer.InputShape.Cols, passbackSlice)
+	return &KernelShift{shifts: allShifts, biases: biasShift}, mat.NewDense(layer.inputMatrices*layer.InputShape.Rows, layer.InputShape.Cols, passbackSlice)
 }
 
 func (layer *Conv2DLayer) NumOutputs() int {
@@ -139,6 +155,7 @@ func (layer *Conv2DLayer) ToBytes() []byte {
 		kernelSlice := utils.GetSlice(kernel)
 		saveBytes = append(saveBytes, save.ToBytes(kernelSlice)...)
 	}
+	saveBytes = append(saveBytes, save.ToBytes(utils.GetSlice(layer.biases))...)
 	return saveBytes
 }
 
@@ -154,6 +171,13 @@ func (layer *Conv2DLayer) FromBytes(bytes []byte) {
 	for i := range layer.kernels {
 		layer.kernels[i] = mat.NewDense(layer.KernelShape.Rows, layer.KernelShape.Cols, kernelSlice[i*kernelSize:(i+1)*kernelSize])
 	}
+
+	layer.outputShape = Shape{
+		Rows: layer.InputShape.Rows - layer.KernelShape.Rows + 1,
+		Cols: layer.InputShape.Cols - layer.KernelShape.Cols + 1,
+	}
+
+	layer.biases = mat.NewDense(layer.NumKernels*layer.outputShape.Rows, layer.outputShape.Cols, kernelSlice[(layer.NumKernels)*kernelSize:])
 }
 
 func (layer *Conv2DLayer) PrettyPrint() string {
@@ -167,34 +191,45 @@ func (layer *Conv2DLayer) PrettyPrint() string {
 
 type KernelShift struct {
 	shifts []*mat.Dense
+
+	biases *mat.Dense
 }
 
 func (k *KernelShift) Apply(layer Layer, scale float64) {
+	conv := layer.(*Conv2DLayer)
 	for i, shift := range k.shifts {
 		shift.Scale(scale, shift)
-		layer.(*Conv2DLayer).kernels[i].Add(layer.(*Conv2DLayer).kernels[i], shift)
+		conv.kernels[i].Add(conv.kernels[i], shift)
 	}
+
+	r, c := conv.biases.Dims()
+	conv.biases.Add(mat.NewDense(r, c, utils.GetSlice(k.biases)), conv.biases)
 }
 
 func (k *KernelShift) Combine(k2 ShiftType) ShiftType {
 	for i := range k.shifts {
 		k.shifts[i].Add(k.shifts[i], k2.(*KernelShift).shifts[i])
 	}
+
+	k.biases.Add(k.biases, k2.(*KernelShift).biases)
 	return k
 }
 
 func (k *KernelShift) Optimize(opt optimizers.Optimizer, index int) {
+	k.biases = opt.Rescale(k.biases, index)
+
 	for i, shift := range k.shifts {
-		k.shifts[i] = opt.Rescale(shift, index+i)
+		k.shifts[i] = opt.Rescale(shift, index+i+1)
 	}
 }
 
 func (k *KernelShift) NumMatrices() int {
-	return len(k.shifts)
+	return len(k.shifts) + 1
 }
 
 func (k *KernelShift) Scale(f float64) {
 	for i := range k.shifts {
 		k.shifts[i].Scale(f, k.shifts[i])
 	}
+	k.biases.Scale(f, k.biases)
 }

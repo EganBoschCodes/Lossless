@@ -342,6 +342,10 @@ func (network *Sequential) FromBytes(bytes []byte) {
 
 		network.Layers = append(network.Layers, layer)
 	}
+
+	if network.Optimizer == nil {
+		network.Optimizer = &optimizers.GradientDescent{}
+	}
 }
 
 // Saves your Sequential into a .lsls file, with the path [Project Directory]/{dir}/{name}.lsls.

@@ -247,25 +247,34 @@ func (layer *LSTMLayer) ToBytes() []byte {
 	candidateBytes := layer.candidateGate.ToBytes()
 	outputBytes := layer.outputGate.ToBytes()
 
-	saveBytes := save.ConstantsToBytes(layer.Outputs, layer.IntervalSize, utils.BoolToInt(layer.OutputSequence), len(forgetBytes))
+	cellBytes, hiddenBytes := save.ToBytes(utils.GetSlice(layer.initialCellState)), save.ToBytes(utils.GetSlice(layer.initialHiddenState))
+
+	saveBytes := save.ConstantsToBytes(layer.Outputs, layer.IntervalSize, utils.BoolToInt(layer.OutputSequence), len(forgetBytes), len(cellBytes))
 	saveBytes = append(saveBytes, forgetBytes...)
 	saveBytes = append(saveBytes, inputBytes...)
 	saveBytes = append(saveBytes, candidateBytes...)
 	saveBytes = append(saveBytes, outputBytes...)
+
+	saveBytes = append(saveBytes, cellBytes...)
+	saveBytes = append(saveBytes, hiddenBytes...)
 
 	return saveBytes
 }
 
 func (layer *LSTMLayer) FromBytes(bytes []byte) {
 
-	constInts, layersSlice := save.ConstantsFromBytes(bytes[:16]), bytes[16:]
+	constInts, bytes := save.ConstantsFromBytes(bytes[:20]), bytes[20:]
 	layer.Outputs, layer.IntervalSize, layer.OutputSequence = constInts[0], constInts[1], constInts[2] != 0
-	gateSliceLength := constInts[3]
+	gateSliceLength, stateSliceLength := constInts[3], constInts[4]
 
-	layer.forgetGate.FromBytes(layersSlice[:gateSliceLength])
-	layer.inputGate.FromBytes(layersSlice[gateSliceLength : gateSliceLength*2])
-	layer.candidateGate.FromBytes(layersSlice[gateSliceLength*2 : gateSliceLength*3])
-	layer.outputGate.FromBytes(layersSlice[gateSliceLength*3:])
+	layer.forgetGate.FromBytes(bytes[:gateSliceLength])
+	layer.inputGate.FromBytes(bytes[gateSliceLength : gateSliceLength*2])
+	layer.candidateGate.FromBytes(bytes[gateSliceLength*2 : gateSliceLength*3])
+	layer.outputGate.FromBytes(bytes[gateSliceLength*3 : gateSliceLength*4])
+
+	bytes = bytes[gateSliceLength*4:]
+	layer.initialCellState, layer.initialHiddenState = utils.FromSlice(save.FromBytes(bytes[:stateSliceLength])), utils.FromSlice(save.FromBytes(bytes[stateSliceLength:]))
+
 }
 
 func (layer *LSTMLayer) PrettyPrint() string {
