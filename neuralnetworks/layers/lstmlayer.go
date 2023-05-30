@@ -22,6 +22,9 @@ type LSTMLayer struct {
 	inputGate     LinearLayer
 	candidateGate LinearLayer
 	outputGate    LinearLayer
+
+	initialHiddenState *mat.Dense
+	initialCellState   *mat.Dense
 }
 
 func (layer *LSTMLayer) Initialize(numInputs int) {
@@ -49,10 +52,15 @@ func (layer *LSTMLayer) Initialize(numInputs int) {
 
 	layer.outputGate = LinearLayer{Outputs: layer.Outputs}
 	layer.outputGate.Initialize(layer.numConcat)
+
+	layer.initialHiddenState, layer.initialCellState = mat.NewDense(layer.Outputs, 1, nil), mat.NewDense(layer.Outputs, 1, nil)
 }
 
 func (layer *LSTMLayer) Pass(input *mat.Dense) (*mat.Dense, CacheType) {
 	hiddenState, cellState := mat.NewDense(layer.Outputs, 1, nil), mat.NewDense(layer.Outputs, 1, nil)
+	hiddenState.Copy(layer.initialHiddenState)
+	hiddenState.Copy(layer.initialCellState)
+
 	inputSlice := utils.GetSlice(input)
 
 	hiddenStates := make([]float64, 0)
@@ -217,10 +225,12 @@ func (layer *LSTMLayer) Back(cache CacheType, frontalPass *mat.Dense) (shift Shi
 	}
 
 	return &LSTMShift{
-		forgetShift:    forgetShift,
-		inputShift:     inputShift,
-		candidateShift: candidateShift,
-		outputShift:    outputShift,
+		forgetShift:      forgetShift,
+		inputShift:       inputShift,
+		candidateShift:   candidateShift,
+		outputShift:      outputShift,
+		cellStateShift:   cellStateGradient,
+		hiddenStateShift: hiddenStateGradient,
 	}, utils.FromSlice(backwardGradients)
 }
 
@@ -237,25 +247,34 @@ func (layer *LSTMLayer) ToBytes() []byte {
 	candidateBytes := layer.candidateGate.ToBytes()
 	outputBytes := layer.outputGate.ToBytes()
 
-	saveBytes := save.ConstantsToBytes(layer.Outputs, layer.IntervalSize, utils.BoolToInt(layer.OutputSequence), len(forgetBytes))
+	cellBytes, hiddenBytes := save.ToBytes(utils.GetSlice(layer.initialCellState)), save.ToBytes(utils.GetSlice(layer.initialHiddenState))
+
+	saveBytes := save.ConstantsToBytes(layer.Outputs, layer.IntervalSize, utils.BoolToInt(layer.OutputSequence), len(forgetBytes), len(cellBytes))
 	saveBytes = append(saveBytes, forgetBytes...)
 	saveBytes = append(saveBytes, inputBytes...)
 	saveBytes = append(saveBytes, candidateBytes...)
 	saveBytes = append(saveBytes, outputBytes...)
+
+	saveBytes = append(saveBytes, cellBytes...)
+	saveBytes = append(saveBytes, hiddenBytes...)
 
 	return saveBytes
 }
 
 func (layer *LSTMLayer) FromBytes(bytes []byte) {
 
-	constInts, layersSlice := save.ConstantsFromBytes(bytes[:16]), bytes[16:]
+	constInts, bytes := save.ConstantsFromBytes(bytes[:20]), bytes[20:]
 	layer.Outputs, layer.IntervalSize, layer.OutputSequence = constInts[0], constInts[1], constInts[2] != 0
-	gateSliceLength := constInts[3]
+	gateSliceLength, stateSliceLength := constInts[3], constInts[4]
 
-	layer.forgetGate.FromBytes(layersSlice[:gateSliceLength])
-	layer.inputGate.FromBytes(layersSlice[gateSliceLength : gateSliceLength*2])
-	layer.candidateGate.FromBytes(layersSlice[gateSliceLength*2 : gateSliceLength*3])
-	layer.outputGate.FromBytes(layersSlice[gateSliceLength*3:])
+	layer.forgetGate.FromBytes(bytes[:gateSliceLength])
+	layer.inputGate.FromBytes(bytes[gateSliceLength : gateSliceLength*2])
+	layer.candidateGate.FromBytes(bytes[gateSliceLength*2 : gateSliceLength*3])
+	layer.outputGate.FromBytes(bytes[gateSliceLength*3 : gateSliceLength*4])
+
+	bytes = bytes[gateSliceLength*4:]
+	layer.initialCellState, layer.initialHiddenState = utils.FromSlice(save.FromBytes(bytes[:stateSliceLength])), utils.FromSlice(save.FromBytes(bytes[stateSliceLength:]))
+
 }
 
 func (layer *LSTMLayer) PrettyPrint() string {
@@ -267,11 +286,18 @@ func (layer *LSTMLayer) PrettyPrint() string {
 	return ret
 }
 
+/*
+The shift type for LSTM Layers.
+*/
+
 type LSTMShift struct {
 	forgetShift    ShiftType
 	inputShift     ShiftType
 	candidateShift ShiftType
 	outputShift    ShiftType
+
+	cellStateShift   *mat.Dense
+	hiddenStateShift *mat.Dense
 }
 
 func (l *LSTMShift) Apply(layer Layer, scale float64) {
@@ -280,6 +306,11 @@ func (l *LSTMShift) Apply(layer Layer, scale float64) {
 	l.inputShift.Apply(&lstmLayer.inputGate, scale)
 	l.candidateShift.Apply(&lstmLayer.candidateGate, scale)
 	l.outputShift.Apply(&lstmLayer.outputGate, scale)
+
+	l.cellStateShift.Scale(scale, l.cellStateShift)
+	l.hiddenStateShift.Scale(scale, l.hiddenStateShift)
+	layer.(*LSTMLayer).initialCellState.Add(layer.(*LSTMLayer).initialCellState, l.cellStateShift)
+	layer.(*LSTMLayer).initialHiddenState.Add(layer.(*LSTMLayer).initialHiddenState, l.hiddenStateShift)
 }
 
 func (l *LSTMShift) Combine(l2 ShiftType) ShiftType {
@@ -289,6 +320,9 @@ func (l *LSTMShift) Combine(l2 ShiftType) ShiftType {
 	l.candidateShift = l.candidateShift.Combine(lstm2.candidateShift)
 	l.outputShift = l.outputShift.Combine(lstm2.outputShift)
 
+	l.cellStateShift.Add(lstm2.cellStateShift, l.cellStateShift)
+	l.hiddenStateShift.Add(lstm2.hiddenStateShift, l.hiddenStateShift)
+
 	return l
 }
 
@@ -297,10 +331,12 @@ func (l *LSTMShift) Optimize(opt optimizers.Optimizer, index int) {
 	l.inputShift.Optimize(opt, index+2)
 	l.candidateShift.Optimize(opt, index+4)
 	l.outputShift.Optimize(opt, index+6)
+
+	l.cellStateShift, l.hiddenStateShift = opt.Rescale(l.cellStateShift, index+8), opt.Rescale(l.hiddenStateShift, index+9)
 }
 
 func (l *LSTMShift) NumMatrices() int {
-	return 8
+	return 10
 }
 
 func (l *LSTMShift) Scale(f float64) {
