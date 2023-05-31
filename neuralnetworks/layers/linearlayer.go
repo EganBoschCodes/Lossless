@@ -97,7 +97,7 @@ func (layer *LinearLayer) FromBytes(bytes []byte) {
 
 func (layer *LinearLayer) PrettyPrint() string {
 	ret := fmt.Sprintf("Linear Layer\n%d Inputs -> %d Outputs\n\n", layer.n_inputs, layer.Outputs)
-	return ret + fmt.Sprintf("weights =\n%s", utils.JSify(layer.weights))
+	return ret + fmt.Sprintf("weights =\n%s\n\nbiases =\n%s", utils.JSify(layer.weights), utils.JSify(layer.biases))
 }
 
 /*
@@ -112,8 +112,14 @@ func (w *WeightShift) Apply(layer Layer, scale float64) {
 	w.weightShift.Scale(scale, w.weightShift)
 	w.biasShift.Scale(scale, w.biasShift)
 
-	layer.(*LinearLayer).weights.Add(layer.(*LinearLayer).weights, w.weightShift)
-	layer.(*LinearLayer).biases.Add(layer.(*LinearLayer).biases, w.biasShift)
+	switch l := layer.(type) {
+	case *LinearLayer:
+		l.weights.Add(l.weights, w.weightShift)
+		l.biases.Add(l.biases, w.biasShift)
+	case *VariableLinearLayer:
+		l.weights.Add(l.weights, w.weightShift)
+		l.biases.Add(l.biases, w.biasShift)
+	}
 }
 
 func (w *WeightShift) Combine(w2 ShiftType) ShiftType {
