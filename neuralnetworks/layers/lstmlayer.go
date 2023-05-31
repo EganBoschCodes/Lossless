@@ -284,10 +284,13 @@ func (layer *LSTMLayer) FromBytes(bytes []byte) {
 
 func (layer *LSTMLayer) PrettyPrint() string {
 	ret := fmt.Sprintf("LSTM Layer\n%d Inputs -> %d Outputs\n\n", layer.InputSize, layer.Outputs)
-	ret += "\nForget Gate:\n" + layer.forgetGate.PrettyPrint()
-	ret += "\nInput Gate:\n" + layer.inputGate.PrettyPrint()
-	ret += "\nCandidate Gate:\n" + layer.candidateGate.PrettyPrint()
-	ret += "\nOutput Gate:\n" + layer.outputGate.PrettyPrint()
+	ret += "\n\nForget Gate:\n" + layer.forgetGate.PrettyPrint()
+	ret += "\n\nInput Gate:\n" + layer.inputGate.PrettyPrint()
+	ret += "\n\nCandidate Gate:\n" + layer.candidateGate.PrettyPrint()
+	ret += "\n\nOutput Gate:\n" + layer.outputGate.PrettyPrint() + "\n\n\n"
+
+	ret += "\n\nInitial Cell State:\n" + utils.JSify(layer.initialCellState)
+	ret += "\n\nInitial Hidden State:\n" + utils.JSify(layer.initialHiddenState)
 	return ret
 }
 
