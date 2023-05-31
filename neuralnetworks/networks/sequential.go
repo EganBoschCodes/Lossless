@@ -369,12 +369,7 @@ func (network *Sequential) Open(dir string, name string) {
 	network.FromBytes(rawBytes)
 }
 
-// Sometimes you want to take your network and move it to another language,
-// raw embed it in the code. To that, I say gross. But I get it. Cause I
-// did it. Anyways, this will write all the relevant info to recreate the
-// network in a human "readable" form (as if a matrix with dimensions in the
-// hundreds can ever be human readable).
-func (network *Sequential) PrettyPrint(dir string, name string) {
+func (network *Sequential) PrettyPrint() string {
 	outputString := ""
 	for i, layer := range network.Layers {
 		outputString += layer.PrettyPrint()
@@ -382,10 +377,5 @@ func (network *Sequential) PrettyPrint(dir string, name string) {
 			outputString += "\n---------------------------------\n\n"
 		}
 	}
-	if len(dir) > 0 {
-		save.WriteStringToFile(fmt.Sprintf("%s/%s.txt", dir, name), outputString)
-	} else {
-		save.WriteStringToFile(fmt.Sprintf("%s.txt", name), outputString)
-	}
-
+	return outputString
 }

@@ -77,20 +77,8 @@ func WriteBytesToFile(path string, bytes []byte) {
 	}
 }
 
-func WriteStringToFile(path string, str string) {
-	pathSteps := strings.Split(path, "/")
-	if len(pathSteps) > 1 {
-		recursivelyCreateFolders(pathSteps[:len(pathSteps)-1])
-	}
-
-	f, _ := os.Create(path)
-	defer f.Close()
-
-	_, err := f.WriteString(str)
-	if err != nil {
-		fmt.Println("\n\nError saving your network to a file!")
-		panic(err)
-	}
+func WriteToFile(path string, value string) {
+	WriteBytesToFile(path, []byte(value))
 }
 
 func ReadBytesFromFile(path string) []byte {
@@ -114,4 +102,8 @@ func ReadBytesFromFile(path string) []byte {
 	}
 
 	return bytes
+}
+
+func ReadFromFile(path string, value string) string {
+	return string(ReadBytesFromFile(path))
 }
