@@ -1,9 +1,5 @@
 package utils
 
-import (
-	"math"
-)
-
 func Min(a int, b int) int {
 	if a < b {
 		return a
@@ -18,9 +14,9 @@ func Max(a int, b int) int {
 	return b
 }
 
-func GetMaxIndex(values []float64) int {
-	maxVal := math.Inf(-1)
-	maxInd := -1
+func GetMaxIndex[T int | float64 | float32](values []T) int {
+	maxVal := values[0]
+	maxInd := 0
 	for i, val := range values {
 		if val > maxVal {
 			maxVal = val

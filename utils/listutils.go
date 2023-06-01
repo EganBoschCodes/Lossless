@@ -54,14 +54,6 @@ func Reverse[T any](vals []T) []T {
 	return rev
 }
 
-func Flatten[T any](vals [][]T) []T {
-	flat := make([]T, 0)
-	for _, val := range vals {
-		flat = append(flat, val...)
-	}
-	return flat
-}
-
 func Filter[T any](vals []T, f func(T) bool) []T {
 	filteredVals := make([]T, 0)
 	for _, val := range vals {
@@ -158,4 +150,33 @@ func Duplicate[T any](val T, length int) []T {
 		vals[i] = val
 	}
 	return vals
+}
+
+func CountOccurances[T any](vals []T, equals func(T, T) bool) ([]T, []int) {
+	ts, counts := make([]T, 0), make([]int, 0)
+	for _, t := range vals {
+		index := FindWithCompare(ts, t, equals)
+		if index < 0 {
+			ts, counts = append(ts, t), append(counts, 1)
+		} else {
+			counts[index]++
+		}
+	}
+	return ts, counts
+}
+
+func Flatten[T any](vals [][]T) []T {
+	return Reduce(vals, func(t1 []T, t2 []T) []T { return append(t1, t2...) })
+}
+
+func Uniques[T comparable](ts []T) []T {
+	uniques := make([]T, 0)
+	alreadyAdded := make(map[T]bool)
+	for _, t := range ts {
+		if !alreadyAdded[t] {
+			uniques = append(uniques, t)
+			alreadyAdded[t] = true
+		}
+	}
+	return uniques
 }
