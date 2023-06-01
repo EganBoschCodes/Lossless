@@ -111,6 +111,8 @@ func IndexToLayer(index int) Layer {
 		return &BatchnormLayer{}
 	case 10:
 		return &LanhLayer{}
+	case 11:
+		return &VariableLinearLayer{}
 	default:
 		return nil
 	}
@@ -140,6 +142,8 @@ func LayerToIndex(layer Layer) int {
 		return 9
 	case *LanhLayer:
 		return 10
+	case *VariableLinearLayer:
+		return 11
 	default:
 		return -1
 	}

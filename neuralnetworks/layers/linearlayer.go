@@ -16,6 +16,7 @@ Linear (or Dense) layer type
 */
 type LinearLayer struct {
 	Outputs int
+	NoBias  bool
 
 	weights  *mat.Dense
 	biases   *mat.Dense
@@ -40,8 +41,10 @@ func (layer *LinearLayer) Initialize(numInputs int) {
 	}
 
 	initialBiases := make([]float64, layer.Outputs)
-	for i := range initialBiases {
-		initialBiases[i] = rand.NormFloat64() / fan_avg
+	if !layer.NoBias {
+		for i := range initialBiases {
+			initialBiases[i] = rand.NormFloat64() / fan_avg
+		}
 	}
 
 	layer.weights = mat.NewDense(layer.Outputs, numInputs, initialWeights)
@@ -54,7 +57,10 @@ func (layer *LinearLayer) Pass(input *mat.Dense) (*mat.Dense, CacheType) {
 	output.Mul(layer.weights, input)
 
 	// Add biases
-	output.Add(output, layer.biases)
+	if !layer.NoBias {
+		output.Add(output, layer.biases)
+	}
+
 	return output, &InputCache{Input: input}
 }
 
