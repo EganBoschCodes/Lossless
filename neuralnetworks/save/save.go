@@ -104,6 +104,6 @@ func ReadBytesFromFile(path string) []byte {
 	return bytes
 }
 
-func ReadFromFile(path string, value string) string {
+func ReadFromFile(path string) string {
 	return string(ReadBytesFromFile(path))
 }

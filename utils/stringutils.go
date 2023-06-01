@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -79,4 +80,39 @@ func ParseSlice(str string) func(int) bool {
 	return func(i int) bool {
 		return Any(Map(intervals, func(in interval) bool { return in.In(i) }), func(b bool) bool { return b })
 	}
+}
+
+func StartsWith(str string, prefix string) bool {
+	if len(prefix) > len(str) {
+		return false
+	}
+	return str[:len(prefix)] == prefix
+}
+
+type StringLengthInterface struct {
+	strings []string
+}
+
+func (s StringLengthInterface) Len() int {
+	return len(s.strings)
+}
+
+func (s StringLengthInterface) Less(i, j int) bool {
+	return len(s.strings[i]) > len(s.strings[j])
+}
+
+func (s StringLengthInterface) Swap(i, j int) {
+	s.strings[i], s.strings[j] = s.strings[j], s.strings[i]
+}
+
+func SortByDecreasingLength(strings []string) {
+	stringInterface := StringLengthInterface{strings: strings}
+	sort.Sort(stringInterface)
+}
+
+func SplitAny(s string, seps string) []string {
+	splitter := func(r rune) bool {
+		return strings.ContainsRune(seps, r)
+	}
+	return strings.FieldsFunc(s, splitter)
 }
