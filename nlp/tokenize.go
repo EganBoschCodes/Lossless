@@ -50,10 +50,6 @@ func toTokenPairs(word string, tokenMap *map[string]int, tokens *[]string) []tok
 }
 
 func GenerateTokens(s string, vocabSize int, standalones []string) (tokens []string, tokenMap map[string]int) {
-	if standalones == nil {
-		standalones = []string{" ", "."}
-	}
-
 	tokens = standalones
 	tokenMap = make(map[string]int)
 	for i, str := range tokens {
@@ -67,10 +63,12 @@ func GenerateTokens(s string, vocabSize int, standalones []string) (tokens []str
 		bytePairs = append(bytePairs, toTokenPairs(word, &tokenMap, &tokens))
 	}
 
-	for len(utils.Uniques(Tokenize(s, tokenMap))) < vocabSize && utils.Reduce(utils.Map(bytePairs, func(v []tokenPair) int { return len(v) }), utils.Max) > 0 {
-		pairs, counts := utils.CountOccurances(utils.Flatten(bytePairs), tokenPairEquals)
+	for len(tokens) < vocabSize && utils.Reduce(utils.Map(bytePairs, func(v []tokenPair) int { return len(v) }), utils.Max) > 0 {
+		pairs, counts := utils.CountOccurancesWithCompare(utils.Flatten(bytePairs), tokenPairEquals)
+		lengths := utils.Map(pairs, func(b tokenPair) int { return -(len(tokens[b.left]) + len(tokens[b.right])) })
 
-		maxOccurance := utils.GetMaxIndex(counts)
+		// Find the most often occuring byte sequence, but prioritize shorter ones
+		maxOccurance := utils.GetMaxIndex(counts, lengths)
 		maxPair := pairs[maxOccurance]
 		newToken, newTokenID := tokens[maxPair.left]+tokens[maxPair.right], len(tokens)
 
