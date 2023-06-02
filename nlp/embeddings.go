@@ -11,7 +11,7 @@ import (
 	"github.com/EganBoschCodes/lossless/utils"
 )
 
-func EmbeddingSpace(str string, mappings map[string]int, dimensions int, contextSize int) networks.Sequential {
+func EmbeddingSpace(str string, mappings map[string]int, contextSize int, dimensions []int) networks.Sequential {
 	numTokens := 0
 	for _, i := range mappings {
 		numTokens = utils.Max(numTokens, i)
@@ -26,17 +26,23 @@ func EmbeddingSpace(str string, mappings map[string]int, dimensions int, context
 
 	fmt.Println(sentences)
 
+	layerStack := make([]layers.Layer, 0)
+	for _, dim := range dimensions {
+		layerStack = append(layerStack, &layers.LinearLayer{Outputs: dim})
+		layerStack = append(layerStack, &layers.TanhLayer{GradientScale: 2.0})
+	}
+
+	for i := len(dimensions) - 2; i >= 0; i-- {
+		dim := dimensions[i]
+		layerStack = append(layerStack, &layers.LinearLayer{Outputs: dim})
+		layerStack = append(layerStack, &layers.TanhLayer{GradientScale: 2.0})
+	}
+	layerStack = append(layerStack, &layers.LinearLayer{Outputs: numTokens})
+	layerStack = append(layerStack, &layers.SoftmaxLayer{})
+
 	embeddingNetwork := networks.Sequential{}
-	embeddingNetwork.Initialize(numTokens,
-		&layers.LinearLayer{Outputs: (dimensions + numTokens) / 2},
-		&layers.TanhLayer{},
-		&layers.LinearLayer{Outputs: dimensions},
-		&layers.TanhLayer{},
-		&layers.LinearLayer{Outputs: (dimensions + numTokens) / 2},
-		&layers.TanhLayer{},
-		&layers.LinearLayer{Outputs: numTokens},
-		&layers.SoftmaxLayer{},
-	)
+	embeddingNetwork.Initialize(numTokens, layerStack...)
+
 	embeddingNetwork.BatchSize = 128
 	embeddingNetwork.SubBatch = 16
 	embeddingNetwork.LearningRate = 1
@@ -56,8 +62,8 @@ func EmbeddingSpace(str string, mappings map[string]int, dimensions int, context
 				if i+j < 0 || i+j >= len(cleanTokenized) || j == 0 {
 					continue
 				}
-				embeddingDataset = append(embeddingDataset, datasets.DataPoint{Input: datasets.ToOneHot(cleanTokenized[i], numTokens), Output: datasets.ToOneHot(cleanTokenized[i+j], numTokens)})
-				if i-j == 1 || j-i == 1 {
+
+				for k := 0; k < utils.Abs(i-j); k++ {
 					embeddingDataset = append(embeddingDataset, datasets.DataPoint{Input: datasets.ToOneHot(cleanTokenized[i], numTokens), Output: datasets.ToOneHot(cleanTokenized[i+j], numTokens)})
 				}
 			}
@@ -68,6 +74,6 @@ func EmbeddingSpace(str string, mappings map[string]int, dimensions int, context
 	embeddingNetwork.Train(embeddingDataset, embeddingDataset, 20*time.Second)
 
 	justEmbeddings := networks.Sequential{}
-	justEmbeddings.Initialize(numTokens, embeddingNetwork.Layers[:4]...)
+	justEmbeddings.Initialize(numTokens, embeddingNetwork.Layers[:2*len(dimensions)]...)
 	return justEmbeddings
 }
