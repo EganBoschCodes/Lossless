@@ -21,14 +21,31 @@ func Abs(a int) int {
 	return a
 }
 
-func GetMaxIndex[T int | float64 | float32](values []T) int {
-	maxVal := values[0]
+// Essentially getting a column of a matrix
+func getParallelIndex[T any](index int, values ...[]T) []T {
+	par := make([]T, len(values))
+	for i := range values {
+		par[i] = values[i][index]
+	}
+	return par
+}
+
+func GetMaxIndex[T int | float64 | float32](values ...[]T) int {
+	maxVals := getParallelIndex(0, values...)
 	maxInd := 0
-	for i, val := range values {
-		if val > maxVal {
-			maxVal = val
-			maxInd = i
+	for i := range values[0] {
+		currentVals := getParallelIndex(i, values...)
+		for currentDepth := range values {
+			if currentVals[currentDepth] > maxVals[currentDepth] {
+				maxVals = currentVals
+				maxInd = i
+				break
+			} else if currentVals[currentDepth] == maxVals[currentDepth] {
+				continue
+			}
+			break
 		}
+
 	}
 	return maxInd
 }
