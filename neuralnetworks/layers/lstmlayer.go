@@ -16,6 +16,7 @@ type LSTMLayer struct {
 
 	OutputSequence      bool
 	ConstantLengthInput bool
+	OutputChunks        int
 
 	numConcat       int
 	numTotalOutputs int
@@ -126,8 +127,10 @@ func (layer *LSTMLayer) Pass(input *mat.Dense) (*mat.Dense, CacheType) {
 		OutputOutputs:    outputOutputs,
 	}
 
-	if layer.OutputSequence {
+	if layer.OutputSequence && layer.OutputChunks == 0 {
 		return utils.FromSlice(hiddenStates), layerCache
+	} else if layer.OutputSequence {
+		return utils.FromSlice(hiddenStates[len(hiddenStates)-layer.OutputChunks*layer.Outputs:]), layerCache
 	}
 	return hiddenState, layerCache
 }
@@ -142,11 +145,14 @@ func (layer *LSTMLayer) Back(cache CacheType, frontalPass *mat.Dense) (shift Shi
 	// If we output a sequence, we will have loss gradients for each individual input. However,
 	// if we didn't, then we will say we have zero loss for every hidden state except the last.
 	var forwardGradients []*mat.Dense
+	cutGradients := utils.Map(utils.Cut(utils.GetSlice(frontalPass), layer.Outputs), utils.FromSlice)
 	if layer.OutputSequence {
-		forwardGradients = utils.Map(utils.Cut(utils.GetSlice(frontalPass), layer.Outputs), utils.FromSlice)
+		forwardGradients = cutGradients
 	} else {
 		forwardGradients = utils.Duplicate(mat.NewDense(layer.Outputs, 1, nil), len(inputs))
-		forwardGradients[len(forwardGradients)-1] = frontalPass
+		for i, gradient := range cutGradients {
+			forwardGradients[len(forwardGradients)-layer.OutputChunks+i] = gradient
+		}
 	}
 
 	backwardGradients := make([]float64, 0)
@@ -239,8 +245,10 @@ func (layer *LSTMLayer) Back(cache CacheType, frontalPass *mat.Dense) (shift Shi
 }
 
 func (layer *LSTMLayer) NumOutputs() int {
-	if layer.OutputSequence && !layer.ConstantLengthInput {
+	if layer.OutputSequence && !layer.ConstantLengthInput && layer.OutputChunks == 0 {
 		return -1
+	} else if layer.OutputSequence && !layer.ConstantLengthInput {
+		return layer.Outputs * layer.OutputChunks
 	} else if layer.OutputSequence {
 		return layer.numTotalOutputs
 	}
@@ -255,7 +263,7 @@ func (layer *LSTMLayer) ToBytes() []byte {
 
 	cellBytes, hiddenBytes := save.ToBytes(utils.GetSlice(layer.initialCellState)), save.ToBytes(utils.GetSlice(layer.initialHiddenState))
 
-	saveBytes := save.ConstantsToBytes(layer.Outputs, layer.InputSize, utils.BoolToInt(layer.OutputSequence), utils.BoolToInt(layer.ConstantLengthInput), len(forgetBytes), len(cellBytes))
+	saveBytes := save.ConstantsToBytes(layer.Outputs, layer.InputSize, utils.BoolToInt(layer.OutputSequence), utils.BoolToInt(layer.ConstantLengthInput), layer.OutputChunks, len(forgetBytes), len(cellBytes))
 	saveBytes = append(saveBytes, forgetBytes...)
 	saveBytes = append(saveBytes, inputBytes...)
 	saveBytes = append(saveBytes, candidateBytes...)
@@ -269,9 +277,9 @@ func (layer *LSTMLayer) ToBytes() []byte {
 
 func (layer *LSTMLayer) FromBytes(bytes []byte) {
 
-	constInts, bytes := save.ConstantsFromBytes(bytes[:24]), bytes[24:]
-	layer.Outputs, layer.InputSize, layer.OutputSequence, layer.ConstantLengthInput = constInts[0], constInts[1], constInts[2] != 0, constInts[3] != 0
-	gateSliceLength, stateSliceLength := constInts[4], constInts[5]
+	constInts, bytes := save.ConstantsFromBytes(bytes[:28]), bytes[28:]
+	layer.Outputs, layer.InputSize, layer.OutputSequence, layer.ConstantLengthInput, layer.OutputChunks = constInts[0], constInts[1], constInts[2] != 0, constInts[3] != 0, constInts[4]
+	gateSliceLength, stateSliceLength := constInts[5], constInts[6]
 
 	layer.forgetGate.FromBytes(bytes[:gateSliceLength])
 	layer.inputGate.FromBytes(bytes[gateSliceLength : gateSliceLength*2])
