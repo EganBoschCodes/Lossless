@@ -131,6 +131,10 @@ func Add(a []float64, b []float64) []float64 {
 	return DoubleMap(a, b, func(va float64, vb float64) float64 { return va + vb })
 }
 
+func Sum[T float64 | int | float32](a []T) T {
+	return Reduce(a, func(b T, c T) T { return b + c })
+}
+
 // Takes in a long single slice and cuts it into intervals of the given size. Used internally to take a giant slice containing a list of inputs and cut and map them into the individual input matrices, for example.
 func Cut[T any](vals []T, intervalSize int) [][]T {
 	if len(vals)%intervalSize != 0 {
@@ -152,7 +156,20 @@ func Duplicate[T any](val T, length int) []T {
 	return vals
 }
 
-func CountOccurances[T any](vals []T, equals func(T, T) bool) ([]T, []int) {
+func CountOccurances[T comparable](vals []T) ([]T, []int) {
+	ts, counts := make([]T, 0), make([]int, 0)
+	for _, t := range vals {
+		index := Find(ts, t)
+		if index < 0 {
+			ts, counts = append(ts, t), append(counts, 1)
+		} else {
+			counts[index]++
+		}
+	}
+	return ts, counts
+}
+
+func CountOccurancesWithCompare[T any](vals []T, equals func(T, T) bool) ([]T, []int) {
 	ts, counts := make([]T, 0), make([]int, 0)
 	for _, t := range vals {
 		index := FindWithCompare(ts, t, equals)

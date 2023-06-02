@@ -52,7 +52,7 @@ func (ada *AdaGrad) Rescale(shift *mat.Dense, index int) *mat.Dense {
 	ada.mutexes[index].Unlock()
 
 	shift = utils.FastApply(shift, func(i, j int, v float64) float64 {
-		return v / math.Sqrt(cache.At(i, j)/float64(ada.cachesPopped)+ada.Epsilon)
+		return v / (math.Sqrt(cache.At(i, j)/float64(ada.cachesPopped)) + ada.Epsilon)
 	})
 
 	if index == len(ada.cache) {
